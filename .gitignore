@@ -1,0 +1,8 @@
+__pycache__/
+.venv/
+.vscode/
+images/
+.DS_Store
+*.ipynb
+
+
