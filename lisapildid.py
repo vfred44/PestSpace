@@ -14,6 +14,7 @@ df.loc[df[".value"] == "Chocolate spot", ".interacting_object_name"] = "Vicia fa
 df.loc[df[".value"] == "Downy mildew", ".interacting_object_name"] = "Vicia faba"
 df.loc[df[".value"] == "Alternaria blight", ".interacting_object_name"] = "Vicia faba"
 df.loc[df[".value"] == "Brown rust", ".interacting_object_name"] = "Triticum aestivum"
+df.loc[df[".value"] == "Pink snow mould", ".interacting_object_name"] = "Triticum aestivum"
 
 # %%
 df.columns = ["Taim", "Kood", "Haigus", "Pilt"]
