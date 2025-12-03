@@ -1,0 +1,18 @@
+defaults:
+  - model: Resnet18
+
+wandb:
+  project: "PestSpace"
+  entity: "fred-vaartnou-ut"
+  run_name: "Resnet18_Downymildew_Chocolatespot"
+
+data:
+  train_base: "/gpfs/helios/home/fred87/Images/Vicia_faba"
+  #train_base: "/Users/fredvaartnou/Library/CloudStorage/OneDrive-TartuÜlikool/PestSpace/Images/Vicia_faba"
+  batch_size: 32
+  num_workers: 4
+  
+trainer:
+  max_epochs: 10
+  accelerator: cpu
+  devices: 1
