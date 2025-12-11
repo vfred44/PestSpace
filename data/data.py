@@ -21,6 +21,7 @@ import wandb
 from pytorch_lightning.loggers import WandbLogger
 import time
 
+
 class MyImageDataset(Dataset):
     def __init__(self, file_paths, labels, transform = None):
         self.file_paths = file_paths
@@ -31,42 +32,41 @@ class MyImageDataset(Dataset):
         return len(self.file_paths)
 
     def __getitem__(self, idx):
-        img_path = self.file_paths[idx]
+        image_path = self.file_paths[idx]
         Image.MAX_IMAGE_PIXELS = None
-        image = Image.open(img_path).convert('RGB')
+        image = Image.open(image_path).convert('RGB')
         label = self.labels[idx]
-
+        
         if self.transform:
             image = self.transform(image)
-        return image, label
+        return image, label, image_path
     
 
 # Functions:
-
-def get_images_for(image_paths, objects):
-    return [p for p in image_paths if os.path.basename(os.path.dirname(p)) in objects]
-
 
 def prepare_datasets(cfg):
     
     image_paths = []
     labels = []
-    count_class0 = 0
-    count_class1 = 0
 
-    # Assign 0 for downey mildew, 1 for rust:
-    for img_path in glob.glob(os.path.join(cfg.data.train_base, "Downy_mildew/**/*.jpg"), recursive=True):
-        image_paths.append(img_path)
-        labels.append(0)
-        count_class0 +=1
+    class_counts = {}
 
-    for img_path in glob.glob(os.path.join(cfg.data.train_base, "Rust/**/*.jpg"), recursive=True):
-        image_paths.append(img_path)
-        labels.append(1)
-        count_class1 +=1
+    for class_name in cfg.data.classes_to_use:
+        class_dir = os.path.join(cfg.data.train_base, class_name)
+        class_label = cfg.data.class_to_label[class_name]
 
-    class_counts = [count_class0, count_class1]
+        # Count images to report statistics later
+        class_counts[class_label] = 0
 
+        # Load all .jpg files recursively
+        pattern = os.path.join(class_dir, "**/*.jpg")
+
+        for img_path in glob.glob(pattern, recursive=True):
+            image_paths.append(img_path)
+            labels.append(class_label)
+            class_counts[class_label] += 1
+
+    
     # Extract object IDs:
 
     object_ids = [os.path.basename(os.path.dirname(p)) for p in image_paths]
@@ -74,6 +74,7 @@ def prepare_datasets(cfg):
     # Each object with its label:
 
     object_to_label = {}
+
     for obj, label in zip(object_ids, labels):
         object_to_label[obj] = label
 
@@ -83,35 +84,37 @@ def prepare_datasets(cfg):
 
     # Split objects by label (stratified):
 
-    obj_trainval, obj_test, y_trainval, y_test = train_test_split(
+    obj_train, obj_val, y_train, y_val = train_test_split(
         unique_objects,
         unique_labels,
-        test_size=0.10,
+        test_size=0.20,
         stratify=unique_labels,
         random_state=42
     )
 
-    obj_train, obj_val, y_train, y_val = train_test_split(
-        obj_trainval,
-        y_trainval,
-        test_size=0.15 / 0.90,
-        stratify=y_trainval,
-        random_state=42
-    )
+    # Add test data:
+
+    # obj_train, obj_val, y_train, y_val = train_test_split(
+    #     obj_trainval,
+    #     y_trainval,
+    #     test_size=0.15 / 0.90,
+    #     stratify=y_trainval,
+    #     random_state=42
+    # )
 
     # Assign images based on object IDs:
 
-    X_train = get_images_for(image_paths, obj_train)
-    X_val = get_images_for(image_paths, obj_val)
-    X_test = get_images_for(image_paths, obj_test)
+    X_train = [p for p in image_paths if os.path.basename(os.path.dirname(p)) in obj_train]
+    X_val = [p for p in image_paths if os.path.basename(os.path.dirname(p)) in obj_val]
+    #X_test = [p for p in image_paths if os.path.basename(os.path.dirname(p)) in obj_test]
 
     y_train = [labels[image_paths.index(p)] for p in X_train]
     y_val = [labels[image_paths.index(p)] for p in X_val]
-    y_test = [labels[image_paths.index(p)] for p in X_test]
+    #y_test = [labels[image_paths.index(p)] for p in X_test]
 
     # Transform data:
 
-    train_transform = transforms.Compose([
+    transform = transforms.Compose([
         #transforms.Resize((1024, 1024)),
         transforms.Resize((512, 512)),
         #transforms.Resize((256, 256)),
@@ -119,30 +122,21 @@ def prepare_datasets(cfg):
         transforms.Normalize((0.5,), (0.5,))
     ])
 
-    val_test_transform = transforms.Compose([
-        #transforms.Resize((1024, 1024)),
-        transforms.Resize((512, 512)),
-        #transforms.Resize((256, 256)),
-        transforms.ToTensor(),
-        transforms.Normalize((0.5,), (0.5,))
-    ])
+    train_dataset = MyImageDataset(X_train, y_train, transform=transform)
+    val_dataset   = MyImageDataset(X_val, y_val, transform=transform)
+    #test_dataset  = MyImageDataset(X_test, y_test, transform=transform)
 
-    train_dataset = MyImageDataset(X_train, y_train, transform=train_transform)
-    val_dataset   = MyImageDataset(X_val, y_val, transform=val_test_transform)
-    test_dataset  = MyImageDataset(X_test, y_test, transform=val_test_transform)
+    
+    return train_dataset, val_dataset, class_counts, image_paths
 
-    return train_dataset, val_dataset, test_dataset, class_counts
 
 
 def get_data_loaders(cfg):
    
-    train_dataset, val_dataset, test_dataset, class_counts = prepare_datasets(cfg)
+    train_dataset, val_dataset, class_counts, image_paths = prepare_datasets(cfg)
 
     train_loader = DataLoader(train_dataset, batch_size=cfg.data.batch_size, shuffle=True, num_workers=cfg.data.num_workers)
     val_loader   = DataLoader(val_dataset, batch_size=cfg.data.batch_size, shuffle=False, num_workers=cfg.data.num_workers)
-    test_loader  = DataLoader(test_dataset, batch_size=cfg.data.batch_size, shuffle=False, num_workers=cfg.data.num_workers)
+    #test_loader  = DataLoader(test_dataset, batch_size=cfg.data.batch_size, shuffle=False, num_workers=cfg.data.num_workers)
 
-    return train_loader, val_loader, test_loader, class_counts
-
-
-
+    return train_loader, val_loader, class_counts, image_paths

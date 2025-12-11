@@ -11,7 +11,7 @@ from torchvision.models import resnet18
 import pytorch_lightning as pl
 from pytorch_lightning import Trainer
 from pytorch_lightning import LightningDataModule
-from pytorch_lightning.callbacks import EarlyStopping
+from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from matplotlib import pyplot as plt
 import numpy as np
 from sklearn.model_selection import train_test_split
@@ -23,7 +23,7 @@ import time
 import hydra
 from hydra.utils import instantiate
 from omegaconf import DictConfig
-from data.data2 import get_data_loaders
+from data.data import get_data_loaders
 
 @hydra.main(config_path="conf", config_name="config")
 def main(cfg: DictConfig):
@@ -49,8 +49,22 @@ def main(cfg: DictConfig):
     )
 
     # Data
-    train_dl, val_dl, test_dl, class_counts = get_data_loaders(cfg)
+    train_dl, val_dl, class_counts, image_paths = get_data_loaders(cfg)
 
+    #Save best checkpoint:
+    checkpoint_cb = ModelCheckpoint(
+                        monitor="val_loss",
+                        mode="min",
+                        save_top_k=1,
+                        filename="best"
+                    )
+    
+    #Stop training when the validation loss stops improving:
+    early_stop_callback = EarlyStopping(
+        monitor='val_loss',
+        patience=3,  # stop after 3 epochs with no improvement
+        mode='min'
+    )
 
     # Model
     model = instantiate(cfg.model,
@@ -61,7 +75,8 @@ def main(cfg: DictConfig):
         max_epochs=cfg.trainer.max_epochs,
         accelerator=cfg.trainer.accelerator,
         devices=cfg.trainer.devices,
-        logger=wandb_logger
+        logger=wandb_logger,
+        callbacks=[checkpoint_cb, early_stop_callback]
     )
 
     # Train with validation every epoch
