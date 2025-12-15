@@ -21,6 +21,25 @@ import wandb
 from pytorch_lightning.loggers import WandbLogger
 import time
 
+# Data balancing methods:
+
+# Weightedrandomsampler
+
+def Weightedrandomsampler(y_train, class_counts):
+    # Compute weights for each class:
+    class_weights = 1. / torch.tensor(class_counts, dtype=torch.float)
+
+    # Assign weight to each sample:
+    sample_weights = torch.tensor([class_weights[label].item() for label in y_train],
+                    dtype=torch.float)
+    
+    sampler = WeightedRandomSampler(
+        weights=sample_weights,
+        num_samples=len(sample_weights),
+        replacement=True
+    )
+    return sampler
+
 
 class MyImageDataset(Dataset):
     def __init__(self, file_paths, labels, transform = None):
@@ -127,16 +146,25 @@ def prepare_datasets(cfg):
     #test_dataset  = MyImageDataset(X_test, y_test, transform=transform)
 
     
-    return train_dataset, val_dataset, class_counts, image_paths
+    class_counts = [int(class_counts[i]) for i in sorted(class_counts.keys())]
+   
+    return train_dataset, val_dataset, class_counts, image_paths, y_train
 
 
 
 def get_data_loaders(cfg):
    
-    train_dataset, val_dataset, class_counts, image_paths = prepare_datasets(cfg)
+    train_dataset, val_dataset, image_paths, class_counts, y_train = prepare_datasets(cfg)
 
-    train_loader = DataLoader(train_dataset, batch_size=cfg.data.batch_size, shuffle=True, num_workers=cfg.data.num_workers)
-    val_loader   = DataLoader(val_dataset, batch_size=cfg.data.batch_size, shuffle=False, num_workers=cfg.data.num_workers)
+    train_loader = DataLoader(train_dataset, 
+                              batch_size=cfg.data.batch_size, 
+                              sampler=Weightedrandomsampler(y_train, class_counts) if cfg.data.use_weightedrandomsampler else None, 
+                              shuffle=False if cfg.data.use_weightedrandomsampler else True, 
+                              num_workers=cfg.data.num_workers)
+    val_loader   = DataLoader(val_dataset, 
+                              batch_size=cfg.data.batch_size, 
+                              shuffle=False, 
+                              num_workers=cfg.data.num_workers)
     #test_loader  = DataLoader(test_dataset, batch_size=cfg.data.batch_size, shuffle=False, num_workers=cfg.data.num_workers)
 
     return train_loader, val_loader, class_counts, image_paths

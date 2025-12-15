@@ -1,16 +1,27 @@
 defaults:
-  - model: Resnet18_focalloss
+  - model: Resnet18
 
-ckpt_path: "/Users/fredvaartnou/Downloads/best.ckpt"
+#ckpt_path: "/Users/fredvaartnou/Downloads/best.ckpt"
 
 wandb:
   project: "PestSpace"
   entity: "fred-vaartnou-ut"
-  run_name: "Resnet18_focalloss_Downymildew_Chocolatespot3"
+  run_name: "Resnet18_noweights"
+
+
+trainer:
+  max_epochs: 20
+  accelerator: gpu
+  devices: 1
+
+learning_rate: 0.0001
 
 data:
   train_base: "/gpfs/helios/home/fred87/Images/Vicia_faba"
   #train_base: "/Users/fredvaartnou/Library/CloudStorage/OneDrive-TartuÜlikool/PestSpace/Images/Vicia_faba"
+  
+  num_classes: 2
+
   classes_to_use:
     - Downy_mildew
     - Chocolate_spot
@@ -19,11 +30,15 @@ data:
     Downy_mildew: 0
     Chocolate_spot: 1
     #Rust: 2
+  
   batch_size: 32
   num_workers: 4
-  
-trainer:
-  max_epochs: 10
-  accelerator: gpu
-  devices: 1
 
+  use_weightedrandomsampler: false
+
+loss_function:
+  use_focal_loss: true
+  alpha: [0.309, 0.691]
+  gamma: 2
+
+  use_weighted_loss: false

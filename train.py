@@ -7,7 +7,6 @@ from torchmetrics.functional import accuracy, f1_score, recall, precision, avera
 from torch.nn import CrossEntropyLoss
 from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler 
 from torchvision import datasets, transforms
-from torchvision.models import resnet18
 import pytorch_lightning as pl
 from pytorch_lightning import Trainer
 from pytorch_lightning import LightningDataModule

@@ -3,7 +3,7 @@ import hydra
 from omegaconf import DictConfig, OmegaConf
 from pytorch_lightning import Trainer
 from pytorch_lightning.loggers import WandbLogger
-from models.Resnet18_focalloss import Resnet18_focalloss       
+from models.Resnet18 import Resnet18      
 from data.data import get_data_loaders
 
 
@@ -14,7 +14,7 @@ def debug(cfg: DictConfig):
     ckpt_path = cfg.ckpt_path
 
     # Load model from checkpoint
-    model = Resnet18_focalloss.load_from_checkpoint(ckpt_path)
+    model = Resnet18.load_from_checkpoint(ckpt_path)
     model.eval()  # Set to evaluation mode
 
     # Setup your DataModule for validation
