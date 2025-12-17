@@ -15,7 +15,8 @@ def debug(cfg: DictConfig):
 
     # Load model from checkpoint
     model = Resnet18.load_from_checkpoint(ckpt_path)
-    model.eval()  # Set to evaluation mode
+   
+    model.eval()
 
     # Setup your DataModule for validation
     train_dl, val_dl, class_counts, image_paths = get_data_loaders(cfg)

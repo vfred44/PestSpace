@@ -6,11 +6,11 @@ defaults:
 wandb:
   project: "PestSpace"
   entity: "fred-vaartnou-ut"
-  run_name: "Resnet18_noweights"
+  run_name: "Resnet18_nocrop"
 
 
 trainer:
-  max_epochs: 20
+  max_epochs: 15
   accelerator: gpu
   devices: 1
 
@@ -37,8 +37,8 @@ data:
   use_weightedrandomsampler: false
 
 loss_function:
-  use_focal_loss: true
+  use_focal_loss: false
   alpha: [0.309, 0.691]
   gamma: 2
 
-  use_weighted_loss: false
+  use_weighted_loss: true

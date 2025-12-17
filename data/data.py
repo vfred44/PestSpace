@@ -135,10 +135,12 @@ def prepare_datasets(cfg):
 
     transform = transforms.Compose([
         #transforms.Resize((1024, 1024)),
-        transforms.Resize((512, 512)),
         #transforms.Resize((256, 256)),
+        transforms.Resize((512, 512)),
+        #transforms.CenterCrop(512),
         transforms.ToTensor(),
-        transforms.Normalize((0.5,), (0.5,))
+        transforms.Normalize((0.485, 0.456, 0.406),
+                             (0.229, 0.224, 0.225))
     ])
 
     train_dataset = MyImageDataset(X_train, y_train, transform=transform)
@@ -147,14 +149,14 @@ def prepare_datasets(cfg):
 
     
     class_counts = [int(class_counts[i]) for i in sorted(class_counts.keys())]
-   
+  
     return train_dataset, val_dataset, class_counts, image_paths, y_train
 
 
 
 def get_data_loaders(cfg):
    
-    train_dataset, val_dataset, image_paths, class_counts, y_train = prepare_datasets(cfg)
+    train_dataset, val_dataset, class_counts, image_paths, y_train = prepare_datasets(cfg)
 
     train_loader = DataLoader(train_dataset, 
                               batch_size=cfg.data.batch_size, 
@@ -166,5 +168,5 @@ def get_data_loaders(cfg):
                               shuffle=False, 
                               num_workers=cfg.data.num_workers)
     #test_loader  = DataLoader(test_dataset, batch_size=cfg.data.batch_size, shuffle=False, num_workers=cfg.data.num_workers)
-
+   
     return train_loader, val_loader, class_counts, image_paths

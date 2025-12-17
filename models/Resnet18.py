@@ -21,11 +21,14 @@ import pandas as pd
 import wandb
 from pytorch_lightning.loggers import WandbLogger
 import math
+from omegaconf.listconfig import ListConfig
 
 
 class FocalLoss(nn.Module):
     def __init__(self, alpha=1, gamma=2, reduction='mean'):
         super().__init__()
+        if isinstance(alpha, ListConfig):
+            alpha = torch.tensor(alpha, dtype=torch.float32)
         self.alpha = alpha
         self.gamma = gamma
         self.reduction = reduction
@@ -37,7 +40,8 @@ class FocalLoss(nn.Module):
             alpha = self.alpha
         else:
             # gather class-specific alpha if tensor
-            alpha = self.alpha[targets]
+            alpha = self.alpha.to(targets.device)[targets]
+
         focal_loss = alpha * (1 - pt) ** self.gamma * ce_loss
         if self.reduction == 'mean':
             return focal_loss.mean()
@@ -48,7 +52,7 @@ class FocalLoss(nn.Module):
 
 
 class Resnet18(pl.LightningModule):
-    def __init__(self, model, num_classes=2, lr=1e-4, use_focal_loss=False, use_weighted_loss=False, class_counts=None, alpha=1, gamma=2):
+    def __init__(self, model, num_classes=2, lr=1e-4, use_focal_loss=False, use_weighted_loss=False, class_counts=False, alpha=1, gamma=2):
         super().__init__()
         self.save_hyperparameters()
         self.model = model
@@ -57,6 +61,8 @@ class Resnet18(pl.LightningModule):
             self.loss_fn = FocalLoss(alpha=alpha, gamma=gamma)
         
         elif use_weighted_loss and class_counts is not None:
+            #print("class_counts:", class_counts)
+            #print("type:", type(class_counts))
             class_counts = torch.tensor(class_counts, dtype=torch.float)
             class_weights = 1.0 / class_counts
             self.loss_fn = nn.CrossEntropyLoss(weight=class_weights)
@@ -203,8 +209,10 @@ class Resnet18(pl.LightningModule):
         fn_images = fn_images[:max_images]
 
         # Unnormalise images
-        fp_images = [img * 0.5 + 0.5 for img in fp_images]
-        fn_images = [img * 0.5 + 0.5 for img in fn_images]
+        #fp_images = [img * 0.5 + 0.5 for img in fp_images]
+        fp_images = [img * np.array([0.229, 0.224, 0.225]) + np.array([0.485, 0.456, 0.406]) for img in fp_images]
+        fn_images = [img * np.array([0.229, 0.224, 0.225]) + np.array([0.485, 0.456, 0.406]) for img in fn_images]
+        #.view(3,1,1)
 
         # Log to wandb
         self.logger.experiment.log({

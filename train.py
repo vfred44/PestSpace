@@ -65,6 +65,8 @@ def main(cfg: DictConfig):
         mode='min'
     )
 
+    print(f"class_counts{class_counts}")
+
     # Model
     model = instantiate(cfg.model,
                         class_counts=class_counts)

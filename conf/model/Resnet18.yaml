@@ -2,8 +2,8 @@ _target_: models.Resnet18.Resnet18
 
 model:
   _target_: torchvision.models.resnet18
-  weights: null
-  #weights: IMAGENET1K_V1
+  #weights: null
+  weights: IMAGENET1K_V1
 
 num_classes: ${data.num_classes}
 lr: ${learning_rate}
