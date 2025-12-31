@@ -9,7 +9,6 @@ num_classes: ${data.num_classes}
 lr: ${learning_rate}
 
 use_focal_loss: ${loss_function.use_focal_loss}
-alpha: ${loss_function.alpha}
 gamma: ${loss_function.gamma}
 
 use_weighted_loss: ${loss_function.use_weighted_loss}

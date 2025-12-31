@@ -7,7 +7,6 @@ from torchmetrics.functional import accuracy, f1_score, recall, precision
 from torch.nn import CrossEntropyLoss
 from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler 
 from torchvision import datasets, transforms
-from torchvision.models import resnet18
 import pytorch_lightning as pl
 from pytorch_lightning import Trainer
 from pytorch_lightning import LightningDataModule
@@ -25,13 +24,24 @@ from omegaconf.listconfig import ListConfig
 
 
 class FocalLoss(nn.Module):
-    def __init__(self, alpha=1, gamma=2, reduction='mean'):
+    def __init__(self, alpha=None, class_counts=None, gamma=2, reduction='mean'):
         super().__init__()
-        if isinstance(alpha, ListConfig):
-            alpha = torch.tensor(alpha, dtype=torch.float32)
-        self.alpha = alpha
         self.gamma = gamma
         self.reduction = reduction
+        if alpha is None and class_counts is not None:
+            class_count = np.array(class_counts)
+            inv_freq = 1/(class_count/class_count.sum())
+            alpha = inv_freq/inv_freq.sum()
+
+        # Convert alpha to torch tensor
+        if isinstance(alpha, np.ndarray):
+            alpha = torch.tensor(alpha, dtype=torch.float32)
+
+        # If None, default to 1
+        if alpha is None:
+            alpha = 1
+
+        self.alpha = alpha
 
     def forward(self, inputs, targets):
         ce_loss = F.cross_entropy(inputs, targets, reduction='none')
@@ -52,13 +62,15 @@ class FocalLoss(nn.Module):
 
 
 class Resnet18(pl.LightningModule):
-    def __init__(self, model, num_classes=2, lr=1e-4, use_focal_loss=False, use_weighted_loss=False, class_counts=False, alpha=1, gamma=2):
+    def __init__(self, model, num_classes=2, classes_to_use=None, lr=1e-4, use_focal_loss=False, use_weighted_loss=False, class_counts=None, alpha=None, gamma=2):
         super().__init__()
         self.save_hyperparameters()
         self.model = model
+        self.num_classes = num_classes
+        self.class_names = classes_to_use
 
         if use_focal_loss:
-            self.loss_fn = FocalLoss(alpha=alpha, gamma=gamma)
+            self.loss_fn = FocalLoss(class_counts=class_counts, gamma=gamma, alpha=alpha)
         
         elif use_weighted_loss and class_counts is not None:
             #print("class_counts:", class_counts)
@@ -72,7 +84,7 @@ class Resnet18(pl.LightningModule):
  
         # Replace final classification layer
         in_features = self.model.fc.in_features
-        self.model.fc = nn.Linear(in_features, num_classes)
+        self.model.fc = nn.Linear(in_features, self.num_classes)
 
 
         self.train_preds = []
@@ -96,9 +108,9 @@ class Resnet18(pl.LightningModule):
         self.train_targets.append(labels.cpu())
         
         #train_bal_acc = balanced_accuracy(preds, labels, task="multiclass", num_classes=2)
-        train_precision = precision(preds, labels, task="multiclass", num_classes=2, average="macro")
-        train_recall = recall(preds, labels, task="multiclass", num_classes=2, average="macro")
-        train_f1score = f1_score(preds, labels, task="multiclass", num_classes=2, average="macro")
+        train_precision = precision(preds, labels, task="multiclass", num_classes=self.num_classes, average="macro")
+        train_recall = recall(preds, labels, task="multiclass", num_classes=self.num_classes, average="macro")
+        train_f1score = f1_score(preds, labels, task="multiclass", num_classes=self.num_classes, average="macro")
 
         self.log_dict({"train_loss": train_loss, 
                        #"train_acc": train_bal_acc, 
@@ -133,10 +145,10 @@ class Resnet18(pl.LightningModule):
       
         #probs = torch.softmax(outputs, dim=1)
         #pos_probs = probs[:, 1] #positive class probabilities
-        val_precision = precision(preds, labels, task="multiclass", num_classes=2, average="macro")
-        val_recall = recall(preds, labels, task="multiclass", num_classes=2, average="macro")
-        val_f1score = f1_score(preds, labels, task="multiclass", num_classes=2, average="macro")
-        #val_bal_acc = balanced_accuracy(preds, labels, task="multiclass", num_classes=2)
+        val_precision = precision(preds, labels, task="multiclass", num_classes=self.num_classes, average="macro")
+        val_recall = recall(preds, labels, task="multiclass", num_classes=self.num_classes, average="macro")
+        val_f1score = f1_score(preds, labels, task="multiclass", num_classes=self.num_classes, average="macro")
+    
 
         self.val_preds.append(preds.cpu())
         self.val_targets.append(labels.cpu())
@@ -178,53 +190,70 @@ class Resnet18(pl.LightningModule):
         #y_probs = torch.cat(self.val_preds_probs, dim=0).numpy()
         img_ids = np.array(self.image_ids)
 
-        class_names = ["downey_mildew", "chocolate_spot"]
-        
-        # roc_auc = roc_auc_score(y_true, y_probs)
-
         # log FP and FN
 
-        # False Positives:
-        fp_idx = np.where((y_pred == 1) & (y_true == 0))[0]
-
-        # False Negatives:
-        fn_idx = np.where((y_true == 1) & (y_pred == 0))[0]
-
-        fp_images = images[fp_idx]
-        fn_images = images[fn_idx]
-
-        fp_ids = img_ids[fp_idx]
-        fn_ids = img_ids[fn_idx]
-
-        print(f"fp_ids {len(fp_ids)}")
-        print(f"fp_ids {fp_ids}")
-        print(f"fn_ids {len(fn_ids)}")
-        print(f"fn_ids {fn_ids}")
-        print(f"fp_pildid {len(fp_images)}")
-        print(f"fn_pildid {len(fn_images)}")
-
-        # Limit number of logged images
         max_images = 20
-        fp_images = fp_images[:max_images]
-        fn_images = fn_images[:max_images]
 
-        # Unnormalise images
-        #fp_images = [img * 0.5 + 0.5 for img in fp_images]
-        fp_images = [img * np.array([0.229, 0.224, 0.225]) + np.array([0.485, 0.456, 0.406]) for img in fp_images]
-        fn_images = [img * np.array([0.229, 0.224, 0.225]) + np.array([0.485, 0.456, 0.406]) for img in fn_images]
-        #.view(3,1,1)
+        for c, class_name in enumerate(self.class_names):
+            # False Positives for class c
+            fp_idx = np.where((y_pred == c) & (y_true != c))[0]
 
-        # Log to wandb
-        self.logger.experiment.log({
-                    "confusion_matrix": wandb.plot.confusion_matrix(
-                        y_true=y_true,
-                        preds=y_pred,
-                        class_names=class_names
-                    ),
-                    "False positives": [wandb.Image(img, caption=f"ID: {id}") for img, id in zip(fp_images, fp_ids)],
-                    "False negatives": [wandb.Image(img, caption=f"ID: {id}") for img, id in zip(fn_images, fn_ids)]
- 
-        }, commit=True)
+            # False Negatives for class c
+            fn_idx = np.where((y_true == c) & (y_pred != c))[0]
+
+            fp_images = images[fp_idx]
+            fn_images = images[fn_idx]
+
+            fp_ids = img_ids[fp_idx]
+            fn_ids = img_ids[fn_idx]
+
+            print(f"fp_ids {len(fp_ids)}")
+            print(f"fp_ids {fp_ids}")
+            print(f"fn_ids {len(fn_ids)}")
+            print(f"fn_ids {fn_ids}")
+            print(f"fp_images {len(fp_images)}")
+            print(f"fn_images {len(fn_images)}")
+
+            fp_images = fp_images[:max_images]
+            fn_images = fn_images[:max_images]
+
+
+            # Unnormalize
+            fp_images = [
+                np.clip(
+                    img * np.array([0.229, 0.224, 0.225]) +
+                    np.array([0.485, 0.456, 0.406]),
+                    0.0, 1.0
+                )
+                for img in fp_images
+            ]
+
+            fn_images = [
+                np.clip(
+                    img * np.array([0.229, 0.224, 0.225]) +
+                    np.array([0.485, 0.456, 0.406]),
+                    0.0, 1.0
+                )
+                for img in fn_images
+            ]
+
+            self.logger.experiment.log({
+                "confusion_matrix": wandb.plot.confusion_matrix(
+                                y_true=y_true,
+                                preds=y_pred,
+                                class_names=self.class_names
+                            ),
+                f"False positives for {class_name}": [
+                    wandb.Image(img, caption=f"ID: {id}")
+                    for img, id in zip(fp_images, fp_ids)
+                ],
+                f"False negatives for {class_name}": [
+                    wandb.Image(img, caption=f"ID: {id}")
+                    for img, id in zip(fn_images, fn_ids)
+                ],
+            }, commit=False)
+
+        
 
     def test_step(self, batch, batch_idx):
         inputs, labels = batch

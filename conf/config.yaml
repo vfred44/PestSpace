@@ -1,12 +1,13 @@
 defaults:
-  - model: Resnet18
+  #- model: Resnet18
+  - model: EfficientnetB0
 
-#ckpt_path: "/Users/fredvaartnou/Downloads/best.ckpt"
+#ckpt_path: "/Users/fredvaartnou/VSCODE/PestSpace/Checkpoints/best.ckpt"
 
 wandb:
   project: "PestSpace"
   entity: "fred-vaartnou-ut"
-  run_name: "Resnet18_nocrop"
+  run_name: "EfficientnetB0_7"
 
 
 trainer:
@@ -14,22 +15,23 @@ trainer:
   accelerator: gpu
   devices: 1
 
-learning_rate: 0.0001
+learning_rate: 0.0003
+#weight_decay?
 
 data:
   train_base: "/gpfs/helios/home/fred87/Images/Vicia_faba"
   #train_base: "/Users/fredvaartnou/Library/CloudStorage/OneDrive-TartuÜlikool/PestSpace/Images/Vicia_faba"
   
-  num_classes: 2
+  num_classes: 3
 
   classes_to_use:
     - Downy_mildew
     - Chocolate_spot
-    #- Rust
+    - Soy_rust
   class_to_label:
     Downy_mildew: 0
     Chocolate_spot: 1
-    #Rust: 2
+    Soy_rust: 2
   
   batch_size: 32
   num_workers: 4
@@ -37,8 +39,7 @@ data:
   use_weightedrandomsampler: false
 
 loss_function:
-  use_focal_loss: false
-  alpha: [0.309, 0.691]
+  use_focal_loss: true
   gamma: 2
 
-  use_weighted_loss: true
+  use_weighted_loss: false

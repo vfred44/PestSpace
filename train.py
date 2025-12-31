@@ -61,7 +61,7 @@ def main(cfg: DictConfig):
     #Stop training when the validation loss stops improving:
     early_stop_callback = EarlyStopping(
         monitor='val_loss',
-        patience=3,  # stop after 3 epochs with no improvement
+        patience=3,  # stop after nr of epochs with no improvement
         mode='min'
     )
 
@@ -69,7 +69,9 @@ def main(cfg: DictConfig):
 
     # Model
     model = instantiate(cfg.model,
-                        class_counts=class_counts)
+                        class_counts=class_counts,
+                        classes_to_use=cfg.data.classes_to_use
+                        )
     
     # Trainer
     trainer = Trainer(

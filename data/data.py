@@ -74,7 +74,6 @@ def prepare_datasets(cfg):
         class_dir = os.path.join(cfg.data.train_base, class_name)
         class_label = cfg.data.class_to_label[class_name]
 
-        # Count images to report statistics later
         class_counts[class_label] = 0
 
         # Load all .jpg files recursively
@@ -133,18 +132,37 @@ def prepare_datasets(cfg):
 
     # Transform data:
 
-    transform = transforms.Compose([
-        #transforms.Resize((1024, 1024)),
-        #transforms.Resize((256, 256)),
-        transforms.Resize((512, 512)),
-        #transforms.CenterCrop(512),
+    # transform = transforms.Compose([
+    #     #transforms.Resize((1024, 1024)),
+    #     #transforms.Resize((256, 256)),
+    #     #transforms.Resize((512, 512)),
+    #     transforms.Resize(512),
+    #     transforms.CenterCrop(512),
+    #     transforms.ToTensor(),
+    #     transforms.Normalize((0.485, 0.456, 0.406),
+    #                          (0.229, 0.224, 0.225))
+    # ])
+
+    train_transform = transforms.Compose([
+        transforms.RandomResizedCrop(224, scale=(0.7, 1.0)),
+        transforms.RandomHorizontalFlip(),
+        transforms.RandomVerticalFlip(),
+        transforms.ColorJitter(0.3, 0.3, 0.3, 0.05),
         transforms.ToTensor(),
         transforms.Normalize((0.485, 0.456, 0.406),
                              (0.229, 0.224, 0.225))
     ])
 
-    train_dataset = MyImageDataset(X_train, y_train, transform=transform)
-    val_dataset   = MyImageDataset(X_val, y_val, transform=transform)
+    val_transform = transforms.Compose([
+        transforms.Resize((224, 224)),
+        transforms.ToTensor(),
+        transforms.Normalize((0.485, 0.456, 0.406),
+                             (0.229, 0.224, 0.225))
+    ])
+    
+
+    train_dataset = MyImageDataset(X_train, y_train, transform=train_transform)
+    val_dataset   = MyImageDataset(X_val, y_val, transform=val_transform)
     #test_dataset  = MyImageDataset(X_test, y_test, transform=transform)
 
     

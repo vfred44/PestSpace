@@ -1,0 +1,14 @@
+_target_: models.EfficientnetB0.EfficientnetB0
+
+model:
+  _target_: torchvision.models.efficientnet_b0
+  weights: IMAGENET1K_V1
+   #weights: null
+
+num_classes: ${data.num_classes}
+lr: ${learning_rate}
+
+use_focal_loss: ${loss_function.use_focal_loss}
+gamma: ${loss_function.gamma}
+
+use_weighted_loss: ${loss_function.use_weighted_loss}
