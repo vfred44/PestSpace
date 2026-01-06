@@ -212,5 +212,6 @@ Notebooks/
 outputs/
 PestSpace/
 wandb/
+Checkpoints/
 .DS_Store
 *ipynb
