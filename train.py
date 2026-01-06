@@ -55,7 +55,8 @@ def main(cfg: DictConfig):
                         monitor="val_loss",
                         mode="min",
                         save_top_k=1,
-                        filename="best"
+                        save_last=True,
+                        filename="{epoch}-{val_loss:.4f}"
                     )
     
     #Stop training when the validation loss stops improving:

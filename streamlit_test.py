@@ -9,7 +9,7 @@ import torch.nn.functional as F
 @st.cache_resource
 
 def load_model():
-    ckpt_path = "/Users/fredvaartnou/VSCODE/PestSpace/Checkpoints/best.ckpt" 
+    ckpt_path = "/Users/fredvaartnou/VSCODE/PestSpace/Checkpoints/epoch=4-val_loss=0.0627.ckpt" 
     model = EfficientnetB0.load_from_checkpoint(ckpt_path)
     model.eval()
     return model
@@ -22,7 +22,6 @@ transform = transforms.Compose([
     transforms.Normalize((0.485, 0.456, 0.406),
                          (0.229, 0.224, 0.225))
 ])
-
 
 st.title("Plant Disease Detection")
 

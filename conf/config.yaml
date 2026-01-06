@@ -4,19 +4,23 @@ defaults:
 
 #ckpt_path: "/Users/fredvaartnou/VSCODE/PestSpace/Checkpoints/best.ckpt"
 
-wandb:
-  project: "PestSpace"
-  entity: "fred-vaartnou-ut"
-  run_name: "EfficientnetB0_7"
-
-
 trainer:
   max_epochs: 15
   accelerator: gpu
   devices: 1
 
 learning_rate: 0.0003
-#weight_decay?
+#weight_decay
+
+#----------------------------------------------------------------------------------------------------------------#
+
+wandb:
+  project: "PestSpace"
+  entity: "fred-vaartnou-ut"
+  run_name: "EfficientnetB0_9"
+
+
+#----------------------------------------------------------------------------------------------------------------#
 
 data:
   train_base: "/gpfs/helios/home/fred87/Images/Vicia_faba"
@@ -36,10 +40,12 @@ data:
   batch_size: 32
   num_workers: 4
 
-  use_weightedrandomsampler: false
+  use_weightedrandomsampler: true
+
+#----------------------------------------------------------------------------------------------------------------#
 
 loss_function:
-  use_focal_loss: true
+  use_focal_loss: false
   gamma: 2
 
   use_weighted_loss: false
