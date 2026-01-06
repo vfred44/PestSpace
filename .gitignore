@@ -207,11 +207,12 @@ marimo/_lsp/
 __marimo__/
 
 #Ignore
+Checkpoints/
 lightning_logs/
 Notebooks/
 outputs/
 PestSpace/
 wandb/
-Checkpoints/
 .DS_Store
 *ipynb
+*ckpt
