@@ -62,7 +62,7 @@ class FocalLoss(nn.Module):
 
 
 class EfficientnetB0(pl.LightningModule):
-    def __init__(self, model, num_classes=2, classes_to_use=None, lr=1e-4, use_focal_loss=False, use_weighted_loss=False, class_counts=None, alpha=None, gamma=2):
+    def __init__(self, model, num_classes=2, classes_to_use=None, lr=1e-4, weight_decay=1e-3, use_focal_loss=False, use_weighted_loss=False, class_counts=None, alpha=None, gamma=2):
         super().__init__()
         self.save_hyperparameters()
         self.model = model
@@ -273,5 +273,5 @@ class EfficientnetB0(pl.LightningModule):
         return test_loss
     
     def configure_optimizers(self):
-        return torch.optim.AdamW(self.parameters(), lr=self.hparams.lr, weight_decay=1e-4)
+        return torch.optim.AdamW(self.parameters(), lr=self.hparams.lr, weight_decay=self.hparams.weight_decay)
         #return torch.optim.Adam(self.parameters(), lr=self.hparams.lr)

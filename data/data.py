@@ -20,6 +20,8 @@ import pandas as pd
 import wandb
 from pytorch_lightning.loggers import WandbLogger
 import time
+from hydra.utils import instantiate
+
 
 # Data balancing methods:
 
@@ -77,7 +79,7 @@ def prepare_datasets(cfg):
         class_counts[class_label] = 0
 
         # Load all .jpg files recursively
-        pattern = os.path.join(class_dir, "**/*.jpg")
+        pattern = os.path.join(class_dir, "**/*.[jJ][pP][gG]")
 
         for img_path in glob.glob(pattern, recursive=True):
             image_paths.append(img_path)
@@ -143,25 +145,11 @@ def prepare_datasets(cfg):
     #                          (0.229, 0.224, 0.225))
     # ])
 
-    train_transform = transforms.Compose([
-        transforms.RandomResizedCrop(320, scale=(0.5, 1.0)),
-        transforms.RandomHorizontalFlip(),
-        transforms.RandomVerticalFlip(),
-        transforms.ColorJitter(0.3, 0.3, 0.3, 0.05),
-        transforms.ToTensor(),
-        transforms.Normalize((0.485, 0.456, 0.406),
-                             (0.229, 0.224, 0.225))
-    ])
+    train_transform = instantiate(cfg.data.transforms.train)
 
-    val_transform = transforms.Compose([
-        transforms.Resize(360),
-        transforms.CenterCrop(320),
-        transforms.ToTensor(),
-        transforms.Normalize((0.485, 0.456, 0.406),
-                             (0.229, 0.224, 0.225))
-    ])
+    val_transform = instantiate(cfg.data.transforms.val)
+  
     
-
     train_dataset = MyImageDataset(X_train, y_train, transform=train_transform)
     val_dataset   = MyImageDataset(X_val, y_val, transform=val_transform)
     #test_dataset  = MyImageDataset(X_test, y_test, transform=transform)

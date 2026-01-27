@@ -149,4 +149,5 @@ dependencies:
     - setuptools-scm==8.0.4
     - tomli==2.0.1
     - wcwidth==0.2.13
+    - pillow pillow-heif
 prefix: /gpfs/helios/home/fred87/.conda/envs/pestspace

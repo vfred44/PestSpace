@@ -38,7 +38,7 @@ def main(cfg: DictConfig):
     name=cfg.wandb.run_name,
     config={
         "batch_size": cfg.data.batch_size,
-        "learning_rate": cfg.model.lr,
+        #"learning_rate": cfg.model.lr,
         "optimizer": "Adam",
         "epochs": cfg.trainer.max_epochs
         },
@@ -80,6 +80,7 @@ def main(cfg: DictConfig):
         accelerator=cfg.trainer.accelerator,
         devices=cfg.trainer.devices,
         logger=wandb_logger,
+        #callbacks=checkpoint_cb
         callbacks=[checkpoint_cb, early_stop_callback]
     )
 
