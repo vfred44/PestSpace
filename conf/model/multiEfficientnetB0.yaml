@@ -1,4 +1,4 @@
-_target_: models.EfficientnetB0.EfficientnetB0
+_target_: models.multiEfficientnetB0.multiEfficientnetB0
 
 model:
   _target_: torchvision.models.efficientnet_b0

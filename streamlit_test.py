@@ -35,6 +35,7 @@ def load_model():
     return model
 
 model = load_model()
+print(model)
 
 transform = transforms.Compose([
     transforms.Resize(360),
@@ -94,7 +95,7 @@ if uploaded_files:
         "Soy rust": Soy_rust_examples
     }
 
-    #st.subheader(f"Example images")
+   
     for rank, (cls, p) in enumerate(results, 1):  
         if rank <= 3 and p >= 0.1:
             st.markdown(f"### {cls}")

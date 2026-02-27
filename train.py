@@ -22,7 +22,7 @@ import time
 import hydra
 from hydra.utils import instantiate
 from omegaconf import DictConfig
-from data.data import get_data_loaders
+from data.multidata import get_data_loaders
 
 @hydra.main(config_path="conf", config_name="config")
 def main(cfg: DictConfig):
@@ -39,7 +39,7 @@ def main(cfg: DictConfig):
     config={
         "batch_size": cfg.data.batch_size,
         #"learning_rate": cfg.model.lr,
-        "optimizer": "Adam",
+        "optimizer": "AdamW",
         "epochs": cfg.trainer.max_epochs
         },
         log_model=True,
@@ -71,7 +71,8 @@ def main(cfg: DictConfig):
     # Model
     model = instantiate(cfg.model,
                         class_counts=class_counts,
-                        classes_to_use=cfg.data.classes_to_use
+                        classes_to_use=cfg.data.diseases_to_use,
+                        plants_to_use=cfg.data.plants_to_use
                         )
     
     # Trainer

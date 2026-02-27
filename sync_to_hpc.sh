@@ -32,6 +32,7 @@ rsync -avz --progress \
     --include="models/" --include="models/***" \
     --include="run_model.sh" \
     --include="train.py" \
+    --include="debugging.py" \
     --exclude="*" \
     $EXCLUDE_ARGS \
     "$LOCAL_DIR" "${HPC_USER}@${HPC_HOST}:${HPC_DIR}"

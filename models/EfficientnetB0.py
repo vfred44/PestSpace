@@ -62,12 +62,13 @@ class FocalLoss(nn.Module):
 
 
 class EfficientnetB0(pl.LightningModule):
-    def __init__(self, model, num_classes=2, classes_to_use=None, lr=1e-4, weight_decay=1e-3, use_focal_loss=False, use_weighted_loss=False, class_counts=None, alpha=None, gamma=2):
+    def __init__(self, model, classes_to_use=None, lr=1e-4, weight_decay=1e-3, use_focal_loss=False, use_weighted_loss=False, class_counts=None, alpha=None, gamma=2):
         super().__init__()
         self.save_hyperparameters()
         self.model = model
-        self.num_classes = num_classes
         self.class_names = classes_to_use
+        self.num_classes = len(classes_to_use)
+    
 
         if use_focal_loss:
             self.loss_fn = FocalLoss(class_counts=class_counts, gamma=gamma, alpha=alpha)

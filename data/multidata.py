@@ -21,18 +21,23 @@ import wandb
 from pytorch_lightning.loggers import WandbLogger
 import time
 from hydra.utils import instantiate
+from collections import Counter
 
 
 # Data balancing methods:
 
 # Weightedrandomsampler
 
-def Weightedrandomsampler(y_train, class_counts):
+def Weightedrandomsampler(y_train, class_counts, cfg):
+
     # Compute weights for each class:
     class_weights = 1. / torch.tensor(class_counts, dtype=torch.float)
 
+    # Convert class names to disease ids
+    y_train_ids = [cfg.data.diseases_to_label[c] for c in y_train]
+
     # Assign weight to each sample:
-    sample_weights = torch.tensor([class_weights[label].item() for label in y_train],
+    sample_weights = torch.tensor([class_weights[label].item() for label in y_train_ids],
                     dtype=torch.float)
     
     sampler = WeightedRandomSampler(
@@ -44,10 +49,11 @@ def Weightedrandomsampler(y_train, class_counts):
 
 
 class MyImageDataset(Dataset):
-    def __init__(self, file_paths, labels, transform = None):
+    def __init__(self, file_paths, labels, cfg, transform = None):
         self.file_paths = file_paths
         self.labels = labels
         self.transform = transform
+        self.cfg = cfg
 
     def __len__(self):
         return len(self.file_paths)
@@ -56,11 +62,31 @@ class MyImageDataset(Dataset):
         image_path = self.file_paths[idx]
         Image.MAX_IMAGE_PIXELS = None
         image = Image.open(image_path).convert('RGB')
-        label = self.labels[idx]
-        
+        disease_label = self.labels[idx]
+        class_name = self.labels[idx]
+        print("class_name:")
+        print(class_name)
+
+
+        # Disease label
+        disease_label = self.cfg.data.diseases_to_label[class_name]
+        print("disease label:")
+        print(disease_label)
+
+
+        # Plant label:
+        plant_name = class_name.split("_")[0]
+        print("plant name:")
+        print(plant_name)
+        plant_label = self.cfg.data.plants_to_label[plant_name]
+        print("plant_label:")
+        print(plant_label)
+
+
         if self.transform:
             image = self.transform(image)
-        return image, label, image_path
+
+        return image, plant_label, disease_label, image_path
     
 
 # Functions:
@@ -69,22 +95,23 @@ def prepare_datasets(cfg):
     
     image_paths = []
     labels = []
-
     class_counts = {}
 
     for class_name in cfg.data.diseases_to_use:
         class_dir = os.path.join(cfg.data.train_base, class_name)
-        class_label = cfg.data.diseases_to_label[class_name]
+        #class_label = cfg.data.class_to_label[class_name]
 
-        class_counts[class_label] = 0
+        #class_counts[class_label] = 0
 
         # Load all .jpg files recursively
         pattern = os.path.join(class_dir, "**/*.[jJ][pP][gG]")
-
+      
         for img_path in glob.glob(pattern, recursive=True):
+            print("image_path")
+            print(img_path)
             image_paths.append(img_path)
-            labels.append(class_label)
-            class_counts[class_label] += 1
+            labels.append(class_name)
+            class_counts[class_name] = class_counts.get(class_name, 0) + 1
 
     
     # Extract object IDs:
@@ -103,6 +130,11 @@ def prepare_datasets(cfg):
 
 
     # Split objects by label (stratified):
+
+    print("Object label counts:")
+    print(Counter(unique_labels))
+    print("Class counts:")
+    print(class_counts)
 
     obj_train, obj_val, y_train, y_val = train_test_split(
         unique_objects,
@@ -150,13 +182,14 @@ def prepare_datasets(cfg):
     val_transform = instantiate(cfg.data.transforms.val)
   
     
-    train_dataset = MyImageDataset(X_train, y_train, transform=train_transform)
-    val_dataset   = MyImageDataset(X_val, y_val, transform=val_transform)
+    train_dataset = MyImageDataset(X_train, y_train, cfg=cfg, transform=train_transform)
+    val_dataset   = MyImageDataset(X_val, y_val, cfg=cfg, transform=val_transform)
     #test_dataset  = MyImageDataset(X_test, y_test, transform=transform)
 
-    
-    class_counts = [int(class_counts[i]) for i in sorted(class_counts.keys())]
-  
+
+    #class_counts = [int(class_counts[i]) for i in sorted(class_counts.keys())]
+    class_counts = [class_counts[c] for c in cfg.data.diseases_to_use]
+
     return train_dataset, val_dataset, class_counts, image_paths, y_train
 
 
@@ -167,7 +200,7 @@ def get_data_loaders(cfg):
 
     train_loader = DataLoader(train_dataset, 
                               batch_size=cfg.data.batch_size, 
-                              sampler=Weightedrandomsampler(y_train, class_counts) if cfg.data.use_weightedrandomsampler else None, 
+                              sampler=Weightedrandomsampler(y_train, class_counts, cfg) if cfg.data.use_weightedrandomsampler else None, 
                               shuffle=False if cfg.data.use_weightedrandomsampler else True, 
                               num_workers=cfg.data.num_workers)
     val_loader   = DataLoader(val_dataset, 

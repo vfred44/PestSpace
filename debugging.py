@@ -3,8 +3,8 @@ import hydra
 from omegaconf import DictConfig, OmegaConf
 from pytorch_lightning import Trainer
 from pytorch_lightning.loggers import WandbLogger
-from models.Resnet18 import Resnet18      
-from data.data import get_data_loaders
+from models.multiEfficientnetB0 import multiEfficientnetB0     
+from data.multidata import get_data_loaders
 
 
 @hydra.main(version_base=None, config_path="conf", config_name="config")
@@ -14,7 +14,7 @@ def debug(cfg: DictConfig):
     ckpt_path = cfg.ckpt_path
 
     # Load model from checkpoint
-    model = Resnet18.load_from_checkpoint(ckpt_path)
+    model = multiEfficientnetB0.load_from_checkpoint(ckpt_path)
    
     model.eval()
 
