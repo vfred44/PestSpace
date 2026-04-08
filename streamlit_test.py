@@ -1,6 +1,6 @@
 import torch
 import streamlit as st
-from models.EfficientnetB0 import EfficientnetB0
+from models.multiEfficientnetB0 import multiEfficientnetB0
 from torchvision import transforms
 from PIL import Image
 import pillow_heif
@@ -15,13 +15,13 @@ pillow_heif.register_heif_opener()
 
 Downy_mildew_examples = '/Users/fredvaartnou/Desktop/Downy_mildew_examples/'
 Chocolate_spot_examples = '/Users/fredvaartnou/Desktop/Chocolate_spot_examples'
-Soy_rust_examples = '/Users/fredvaartnou/Desktop/Soy_rust_examples'
+#Soy_rust_examples = '/Users/fredvaartnou/Desktop/Soy_rust_examples'
 
 causing_taxa = {"Downy mildew": {"Peronospora viciae": "https://elurikkus.ee/app/taxonomy/taxon/192883"},
                 "Chocolate spot": {"Botrytis fabae": "https://elurikkus.ee/app/taxonomy/taxon/135558",
                                    "Botrytis cinerea": "https://elurikkus.ee/app/taxonomy/taxon/135549"},
-                "Soy rust": {"Phakopsora pachyrhizi": "https://elurikkus.ee/app/taxonomy/taxon/164595",
-                             "Phakopsora meibomiae": "https://elurikkus.ee/app/taxonomy/taxon/164591"}
+                # "Soy rust": {"Phakopsora pachyrhizi": "https://elurikkus.ee/app/taxonomy/taxon/164595",
+                #              "Phakopsora meibomiae": "https://elurikkus.ee/app/taxonomy/taxon/164591"}
                 }
 
 
@@ -29,8 +29,8 @@ causing_taxa = {"Downy mildew": {"Peronospora viciae": "https://elurikkus.ee/app
 @st.cache_resource
 
 def load_model():
-    ckpt_path = "/Users/fredvaartnou/VSCODE/PestSpace/Checkpoints/19.01.2026/epoch=24-val_loss=0.0471.ckpt" 
-    model = EfficientnetB0.load_from_checkpoint(ckpt_path)
+    ckpt_path = '/Users/fredvaartnou/Desktop/Checkpoint 2.20.26/epoch=8-val_loss=0.0491.ckpt'
+    model = multiEfficientnetB0.load_from_checkpoint(ckpt_path)
     model.eval()
     return model
 
@@ -45,7 +45,7 @@ transform = transforms.Compose([
                              (0.229, 0.224, 0.225))
 ])
 
-classes = ["Downy mildew", "Chocolate spot", "Soy rust"]
+classes = ["Unknown", "Chocolate spot", "Downy mildew"]
 
 st.title("Plant Disease Detection")
 
@@ -71,52 +71,65 @@ if uploaded_files:
         batch = torch.stack(tensors)
 
     with torch.no_grad():
-        logits = model(batch)
-        probs = F.softmax(logits, dim=1)
+        outputs = model(batch)
+        logits_plant = outputs[0]
+        logits_disease = outputs[1]
+        probs_plant = F.softmax(logits_plant, dim=1)
+        probs_disease = F.softmax(logits_disease, dim=1)
     
     #Average probabilities across images
-    avg_probs = probs.mean(dim=0)
+    avg_probs_disease = probs_disease.mean(dim=0)
+    avg_probs_plant = probs_plant.mean(dim=0)
    
-    results = list(zip(classes, avg_probs.tolist()))
-    results.sort (key=lambda x: x[1], reverse=True)
+    plant_classes = ["Unknown", "Unknown", "Vicia faba"]
+    plant_conf, plant_idx = avg_probs_plant.max(0)
+    st.markdown(f"{plant_conf, plant_idx}")
+
+    if plant_classes[plant_idx] == "Unknown" or plant_conf < 0.6:
+        st.error("The plant is not recognized. Please upload a supported plant species.")
+        st.stop()
+
+    if plant_conf >=0.6:
+        st.markdown(f"Plant name: {plant_classes[plant_idx]}, conf: {plant_conf}")
+        results = list(zip(classes, avg_probs_disease.tolist()))
+        results.sort (key=lambda x: x[1], reverse=True)
 
 
-    for rank, (cls, p) in enumerate(results, 1):
-        if p > 0.01:
-            st.subheader(f"{rank}. {cls}: {p*100:.1f} %")
+        for rank, (cls, p) in enumerate(results, 1):
+            if p > 0.01:
+                st.subheader(f"{rank}. {cls}: {p*100:.1f} %")
+                
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # Example pictures
+
+        example_dirs = {
+            "Downy mildew": Downy_mildew_examples,
+            "Chocolate spot": Chocolate_spot_examples
+        }
+
+    
+        for rank, (cls, p) in enumerate(results, 1):  
+            if rank <= 3 and p >= 0.1:
+                st.markdown(f"### {cls}")
+                if cls in causing_taxa:
+                    taxa_dict = causing_taxa[cls]
+                    links = " - ".join(
+                        f"[{taxa}]({url})"
+                        for taxa, url in taxa_dict.items())
+                    st.markdown(f"**Causing taxa:** {links}")
+                
+                st.markdown("**Example images:**")
+                folder = example_dirs.get(cls)
+                example_images = [
+                    os.path.join(folder, f)
+                    for f in os.listdir(folder)
+                    if f.lower().endswith(".jpg")
+                ]
+
+                cols = st.columns(len(example_images))
+
+                for col, img_path in zip(cols, example_images):
+                    image = Image.open(img_path)
+                    col.image(image, width="stretch")
             
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    # Example pictures
-
-    example_dirs = {
-        "Downy mildew": Downy_mildew_examples,
-        "Chocolate spot": Chocolate_spot_examples,
-        "Soy rust": Soy_rust_examples
-    }
-
-   
-    for rank, (cls, p) in enumerate(results, 1):  
-        if rank <= 3 and p >= 0.1:
-            st.markdown(f"### {cls}")
-            if cls in causing_taxa:
-                taxa_dict = causing_taxa[cls]
-                links = " - ".join(
-                    f"[{taxa}]({url})"
-                    for taxa, url in taxa_dict.items())
-                st.markdown(f"**Causing taxa:** {links}")
-            
-            st.markdown("**Example images:**")
-            folder = example_dirs.get(cls)
-            example_images = [
-                os.path.join(folder, f)
-                for f in os.listdir(folder)
-                if f.lower().endswith(".jpg")
-            ]
-
-            cols = st.columns(len(example_images))
-
-            for col, img_path in zip(cols, example_images):
-                image = Image.open(img_path)
-                col.image(image, width="stretch")
-        

@@ -2,8 +2,8 @@ _target_: models.EfficientnetB0.EfficientnetB0
 
 model:
   _target_: torchvision.models.efficientnet_b0
-  weights: IMAGENET1K_V1
-  #weights: null
+  #weights: IMAGENET1K_V1
+  weights: null
 
 lr: ${learning_rate}
 weight_decay: ${weight_decay}

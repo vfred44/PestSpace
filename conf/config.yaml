@@ -1,9 +1,9 @@
 defaults:
-  #- model: Resnet18
-  - model: EfficientnetB0
+  - model: Resnet18
+  #- model: EfficientnetB0
   #- model: multiEfficientnetB0
 
-#ckpt_path: "/Users/fredvaartnou/VSCODE/PestSpace/Checkpoints/last.ckpt"
+#ckpt_path: '/Users/fredvaartnou/Desktop/Taimehaigused ML/Saadetud mudelid/Model_vicia faba_090326/checkpoints (9.03.26)/epoch=7-val_loss=0.1114.ckpt'
 
 trainer:
   max_epochs: 25
@@ -18,7 +18,7 @@ weight_decay: 0.0001
 wandb:
   project: "PestSpace"
   entity: "fred-vaartnou-ut"
-  run_name: "EfficientnetB0_soy_gradcam"
+  run_name: "Resnet18_soy_imagenet1k"
 
 
 #----------------------------------------------------------------------------------------------------------------#
@@ -32,13 +32,13 @@ data:
 
   # plants_to_use:
   #   - Soybean
-  #   - Wheat
-  #   - Fababean
+  #   #- Wheat
+  #   #- Fababean
 
   # plants_to_label:
   #   Soybean: 0
-  #   Wheat: 1
-  #   Fababean: 2
+  #   #Wheat: 0
+  #   #Fababean: 1
 
   diseases_to_use:
     - Soybean_cercospora_leaf_blight
@@ -47,8 +47,8 @@ data:
     - Soybean_healthy
     - Soybean_rust
     - Soybean_target_spot
-    - Soybean_bacterial_blight
-    - Soybean_potassium_deficiency
+    # - Soybean_bacterial_blight
+    # - Soybean_potassium_deficiency
     # - Wheat_brown_rust
     # - Wheat_healthy
     # - Wheat_septoria
@@ -63,8 +63,8 @@ data:
     Soybean_healthy: 3
     Soybean_rust: 4
     Soybean_target_spot: 5
-    Soybean_bacterial_blight: 6
-    Soybean_potassium_deficiency: 7
+    # Soybean_bacterial_blight: 6
+    # Soybean_potassium_deficiency: 7
     # Wheat_brown_rust: 8
     # Wheat_healthy: 9
     # Wheat_septoria: 10

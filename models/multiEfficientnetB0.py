@@ -75,8 +75,6 @@ class multiEfficientnetB0(pl.LightningModule):
             self.loss_fn = FocalLoss(class_counts=class_counts, gamma=gamma, alpha=alpha)
         
         elif use_weighted_loss and class_counts is not None:
-            #print("class_counts:", class_counts)
-            #print("type:", type(class_counts))
             class_counts = torch.tensor(class_counts, dtype=torch.float)
             class_weights = 1.0 / class_counts
             self.loss_fn = nn.CrossEntropyLoss(weight=class_weights)

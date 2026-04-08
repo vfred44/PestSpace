@@ -81,7 +81,7 @@ def prepare_datasets(cfg):
         # Load all .jpg files recursively
         pattern = os.path.join(class_dir, "**/*.[jJ][pP][gG]")
 
-        for img_path in glob.glob(pattern, recursive=True):
+        for img_path in sorted(glob.glob(pattern, recursive=True)):
             image_paths.append(img_path)
             labels.append(class_label)
             class_counts[class_label] += 1

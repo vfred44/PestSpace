@@ -3,7 +3,7 @@ import os
 from PIL import Image
 import torch.nn as nn
 import torch.nn.functional as F
-from torchmetrics.functional import accuracy, f1_score, recall, precision
+#from torchmetrics.functional import accuracy, f1_score, recall, precision
 from torch.nn import CrossEntropyLoss
 from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler 
 from torchvision import datasets, transforms
@@ -14,7 +14,7 @@ from pytorch_lightning.callbacks import EarlyStopping
 from matplotlib import pyplot as plt
 import numpy as np
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import balanced_accuracy_score
+from sklearn.metrics import balanced_accuracy_score, precision_score, recall_score, f1_score
 import glob
 import pandas as pd
 import wandb
@@ -62,11 +62,11 @@ class FocalLoss(nn.Module):
 
 
 class Resnet18(pl.LightningModule):
-    def __init__(self, model, num_classes=2, classes_to_use=None, lr=1e-4, use_focal_loss=False, use_weighted_loss=False, class_counts=None, alpha=None, gamma=2):
+    def __init__(self, model, classes_to_use=None, lr=1e-4, weight_decay=1e-3, use_focal_loss=False, use_weighted_loss=False, class_counts=None, alpha=None, gamma=2):
         super().__init__()
         self.save_hyperparameters()
         self.model = model
-        self.num_classes = num_classes
+        self.num_classes = len(classes_to_use)
         self.class_names = classes_to_use
 
         if use_focal_loss:
@@ -106,18 +106,8 @@ class Resnet18(pl.LightningModule):
         
         self.train_preds.append(preds.cpu())
         self.train_targets.append(labels.cpu())
-        
-        #train_bal_acc = balanced_accuracy(preds, labels, task="multiclass", num_classes=2)
-        train_precision = precision(preds, labels, task="multiclass", num_classes=self.num_classes, average="macro")
-        train_recall = recall(preds, labels, task="multiclass", num_classes=self.num_classes, average="macro")
-        train_f1score = f1_score(preds, labels, task="multiclass", num_classes=self.num_classes, average="macro")
 
-        self.log_dict({"train_loss": train_loss, 
-                       #"train_acc": train_bal_acc, 
-                       "train_precision": train_precision, 
-                       "train_recall": train_recall, 
-                       "train_f1score": train_f1score
-                       }, on_epoch=True, on_step=False, logger=True)
+        self.log("train_loss", train_loss, on_epoch=True, on_step=False, logger=True)
                     
         return train_loss
 
@@ -125,9 +115,18 @@ class Resnet18(pl.LightningModule):
         if len(self.train_preds) > 0:
             preds = torch.cat(self.train_preds).numpy()
             targets = torch.cat(self.train_targets).numpy()
-            bal_acc = balanced_accuracy_score(targets, preds)
 
-            self.log("train_balanced_accuracy", bal_acc, on_epoch=True, prog_bar=True)
+            train_bal_acc = balanced_accuracy_score(targets, preds)
+            train_precision = precision_score(targets, preds, average="macro", zero_division=0)
+            train_recall = recall_score(targets, preds, average="macro", zero_division=0)
+            train_f1score = f1_score(targets, preds, average="macro", zero_division=0)
+
+            self.log_dict({"train_bal_accuracy": train_bal_acc,
+                            "train_precision": train_precision, 
+                            "train_recall": train_recall, 
+                            "train_f1score": train_f1score
+                        }, on_epoch=True, on_step=False, logger=True)
+
 
         # clear buffers
         self.train_preds.clear()
@@ -145,24 +144,15 @@ class Resnet18(pl.LightningModule):
       
         #probs = torch.softmax(outputs, dim=1)
         #pos_probs = probs[:, 1] #positive class probabilities
-        val_precision = precision(preds, labels, task="multiclass", num_classes=self.num_classes, average="macro")
-        val_recall = recall(preds, labels, task="multiclass", num_classes=self.num_classes, average="macro")
-        val_f1score = f1_score(preds, labels, task="multiclass", num_classes=self.num_classes, average="macro")
-    
-
+       
         self.val_preds.append(preds.cpu())
         self.val_targets.append(labels.cpu())
         self.val_images.append(inputs.cpu())
         self.image_ids.extend(ids)
         #self.val_preds_probs.append(pos_probs.cpu())
         
-        self.log_dict({"val_loss": val_loss, 
-                       #"val_bal_acc": val_bal_acc, 
-                       "val_precision": val_precision, 
-                       "val_recall": val_recall, 
-                       "val_f1score": val_f1score
-                       }, on_epoch=True, on_step=False, logger=True)
-    
+        self.log("val_loss", val_loss, on_epoch=True, on_step=False, logger=True)
+
         return val_loss
     
         
@@ -178,9 +168,17 @@ class Resnet18(pl.LightningModule):
         if len(self.val_preds) > 0:
             preds = torch.cat(self.val_preds).numpy()
             targets = torch.cat(self.val_targets).numpy()
-            bal_acc = balanced_accuracy_score(targets, preds)
+            
+            val_bal_acc = balanced_accuracy_score(targets, preds)
+            val_precision = precision_score(targets, preds, average="macro", zero_division=0)
+            val_recall = recall_score(targets, preds, average="macro", zero_division=0)
+            val_f1score = f1_score(targets, preds, average="macro", zero_division=0)
 
-            self.log("val_balanced_accuracy", bal_acc, on_epoch=True, prog_bar=True)
+            self.log_dict({"val_bal_accuracy": val_bal_acc,
+                            "val_precision": val_precision, 
+                            "val_recall": val_recall, 
+                            "val_f1score": val_f1score
+                        }, on_epoch=True, on_step=False, logger=True)
 
 
     def on_fit_end(self):
@@ -266,4 +264,4 @@ class Resnet18(pl.LightningModule):
         return test_loss
     
     def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), lr=self.hparams.lr)
+        return torch.optim.AdamW(self.parameters(), lr=self.hparams.lr, weight_decay=self.hparams.weight_decay)

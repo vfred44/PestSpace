@@ -22,7 +22,7 @@ import time
 import hydra
 from hydra.utils import instantiate
 from omegaconf import DictConfig
-from data.multidata import get_data_loaders
+from data.data import get_data_loaders
 
 @hydra.main(config_path="conf", config_name="config")
 def main(cfg: DictConfig):
@@ -71,8 +71,8 @@ def main(cfg: DictConfig):
     # Model
     model = instantiate(cfg.model,
                         class_counts=class_counts,
-                        classes_to_use=cfg.data.diseases_to_use,
-                        plants_to_use=cfg.data.plants_to_use
+                        classes_to_use=cfg.data.diseases_to_use
+                        #plants_to_use=cfg.data.plants_to_use
                         )
     
     # Trainer
