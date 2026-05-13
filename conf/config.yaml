@@ -1,9 +1,9 @@
 defaults:
-  - model: Resnet18
+  #- model: Resnet18
   #- model: EfficientnetB0
-  #- model: multiEfficientnetB0
+  - model: multiEfficientnetB0
 
-#ckpt_path: '/Users/fredvaartnou/Desktop/Taimehaigused ML/Saadetud mudelid/Model_vicia faba_090326/checkpoints (9.03.26)/epoch=7-val_loss=0.1114.ckpt'
+#ckpt_path: '/gpfs/helios/home/fred87/PestSpace/outputs/2026-04-23/00-10-16/PestSpace/sn7ujufd/checkpoints/epoch=3-val_loss=0.0482.ckpt'
 
 trainer:
   max_epochs: 25
@@ -18,7 +18,7 @@ weight_decay: 0.0001
 wandb:
   project: "PestSpace"
   entity: "fred-vaartnou-ut"
-  run_name: "Resnet18_soy_imagenet1k"
+  run_name: "multiEfficientnetB0_pestspace_soywheat_fabawheat"
 
 
 #----------------------------------------------------------------------------------------------------------------#
@@ -30,47 +30,63 @@ data:
   #train_base: "/Users/fredvaartnou/Library/CloudStorage/OneDrive-TartuÜlikool/PestSpace/Images/Vicia_faba"
   #train_base: "/Users/fredvaartnou/Desktop/Taimehaigused ML/Data/Auburn_soybean_disease_image_dataset_(ASDID)"
 
-  # plants_to_use:
-  #   - Soybean
-  #   #- Wheat
-  #   #- Fababean
+  plants_to_use:
+    #- Soybean
+    - Fababean
+    - Wheat
 
-  # plants_to_label:
-  #   Soybean: 0
-  #   #Wheat: 0
-  #   #Fababean: 1
+  plants_to_label:
+    #Soybean: 0
+    Fababean: 0
+    Wheat: 1
 
   diseases_to_use:
-    - Soybean_cercospora_leaf_blight
-    - Soybean_downey_mildew
-    - Soybean_frogeye
-    - Soybean_healthy
-    - Soybean_rust
-    - Soybean_target_spot
+    # - Soybean_cercospora_leaf_blight
+    # - Soybean_downey_mildew
+    # - Soybean_frogeye
+    # - Soybean_healthy
+    # - Soybean_rust
+    # - Soybean_target_spot
     # - Soybean_bacterial_blight
     # - Soybean_potassium_deficiency
     # - Wheat_brown_rust
     # - Wheat_healthy
     # - Wheat_septoria
     # - Wheat_yellow_rust
-    # - Fababean_chocolate_spot
-    # - Fababean_downy_mildew
+    - PS_Wheat_septoria_tritici_blotch
+    - PS_Wheat_stagonospora_blotch
+    - PS_Wheat_tan_spot
+    - PS_Fababean_chocolate_spot
+    - PS_Fababean_downy_mildew
+    - PS_Fababean_alternaria_blight
+    - PS_Fababean_ascochyta_blight
+    - PS_Fababean_rust
+    - PS_Fababean_stemphylium_blight
+
 
   diseases_to_label:
-    Soybean_cercospora_leaf_blight: 0
-    Soybean_downey_mildew: 1
-    Soybean_frogeye: 2
-    Soybean_healthy: 3
-    Soybean_rust: 4
-    Soybean_target_spot: 5
+    # Soybean_cercospora_leaf_blight: 0
+    # Soybean_downey_mildew: 1
+    # Soybean_frogeye: 2
+    # Soybean_healthy: 3
+    # Soybean_rust: 4
+    # Soybean_target_spot: 5
     # Soybean_bacterial_blight: 6
     # Soybean_potassium_deficiency: 7
     # Wheat_brown_rust: 8
     # Wheat_healthy: 9
     # Wheat_septoria: 10
     # Wheat_yellow_rust: 11
-    # Fababean_chocolate_spot: 12
-    # Fababean_downy_mildew: 13
+    PS_Wheat_septoria_tritici_blotch: 0
+    PS_Wheat_stagonospora_blotch: 1
+    PS_Wheat_tan_spot: 2
+    PS_Fababean_chocolate_spot: 3
+    PS_Fababean_downy_mildew: 4
+    PS_Fababean_alternaria_blight: 5
+    PS_Fababean_ascochyta_blight: 6
+    PS_Fababean_rust: 7
+    PS_Fababean_stemphylium_blight: 8
+
   
   batch_size: 32
   num_workers: 4

@@ -1,28 +1,12 @@
 import torch
-import os
-from PIL import Image
-import torch.nn as nn
-import torch.nn.functional as F
-from torchmetrics.functional import accuracy, f1_score, recall, precision, average_precision, auroc
-from torch.nn import CrossEntropyLoss
-from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler 
-from torchvision import datasets, transforms
-import pytorch_lightning as pl
 from pytorch_lightning import Trainer
-from pytorch_lightning import LightningDataModule
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
-from matplotlib import pyplot as plt
-import numpy as np
-from sklearn.model_selection import train_test_split
-import glob
-import pandas as pd
 import wandb
 from pytorch_lightning.loggers import WandbLogger
-import time
 import hydra
 from hydra.utils import instantiate
 from omegaconf import DictConfig
-from data.data import get_data_loaders
+from data.multidata import get_data_loaders
 
 @hydra.main(config_path="conf", config_name="config")
 def main(cfg: DictConfig):
@@ -68,13 +52,42 @@ def main(cfg: DictConfig):
 
     print(f"class_counts{class_counts}")
 
-    # Model
+    #Model
     model = instantiate(cfg.model,
                         class_counts=class_counts,
-                        classes_to_use=cfg.data.diseases_to_use
-                        #plants_to_use=cfg.data.plants_to_use
+                        classes_to_use=cfg.data.diseases_to_use,
+                        plants_to_use=cfg.data.plants_to_use
                         )
     
+    # For finetuning:
+    # checkpoint = torch.load(cfg.ckpt_path, map_location="cpu")
+    # state_dict = checkpoint["state_dict"]
+
+    # #remove classifier weights
+    # state_dict = {
+    #     k: v for k, v in state_dict.items()
+    #     if not k.startswith("model.classifier")
+    # }
+
+    # model.load_state_dict(state_dict, strict=False)
+   
+    # model.model.features.requires_grad_(True)
+
+    # For finetuning with plant and disease classification
+
+    checkpoint = torch.load(cfg.ckpt_path, map_location="cpu")
+    state_dict = checkpoint["state_dict"]
+
+    # Remove both heads
+    state_dict = {
+    k: v for k, v in state_dict.items()
+    if not ("disease_head" in k or "plant_head" in k)
+    }
+
+    model.load_state_dict(state_dict, strict=False)
+    model.model.features.requires_grad_(True)
+
+
     # Trainer
     trainer = Trainer(
         max_epochs=cfg.trainer.max_epochs,

@@ -6,7 +6,6 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 import glob
 from hydra.utils import instantiate
-from collections import Counter
 
 
 # Data balancing methods:
@@ -54,7 +53,7 @@ class MyImageDataset(Dataset):
         disease_label = self.cfg.data.diseases_to_label[class_name]
        
         # Plant label:
-        plant_name = class_name.split("_")[1]
+        plant_name = class_name.replace("PS_", "").split("_")[0]
         plant_label = self.cfg.data.plants_to_label[plant_name]
 
         if self.transform:
@@ -87,42 +86,64 @@ def prepare_datasets(cfg):
             labels.append(class_name)
             class_counts[class_name] = class_counts.get(class_name, 0) + 1
 
+
     
     # Extract object IDs:
 
     object_ids = [os.path.basename(os.path.dirname(p)) for p in image_paths]
 
-    # Each object with its label:
-
     object_to_label = {}
+    object_to_paths = {}
 
-    for obj, label in zip(object_ids, labels):
+    for p, obj, label in zip(image_paths, object_ids, labels):
         object_to_label[obj] = label
+        object_to_paths.setdefault(obj, []).append(p)
 
-    unique_objects = np.array(list(object_to_label.keys()))
-    unique_labels = np.array(list(object_to_label.values()))
+    # Split objects into PS and non-PS
+    ps_objects = []
+    ps_labels = []
 
+    non_ps_objects = []
 
-    # Split objects by label (stratified):
+    for obj, label in object_to_label.items():
+        plant_name = label.split("_")[0]
 
-    print("Object label counts:")
-    print(Counter(unique_labels))
-    print("Class counts:")
-    print(class_counts)
+        if plant_name.startswith("PS"):
+            ps_objects.append(obj)
+            ps_labels.append(label)
+        else:
+            non_ps_objects.append(obj)
 
-    obj_train, obj_val, y_train, y_val = train_test_split(
-        unique_objects,
-        unique_labels,
+    ps_objects = np.array(ps_objects)
+    ps_labels = np.array(ps_labels)
+
+    # Split only PS objects
+    ps_train_obj, ps_val_obj, _, _ = train_test_split(
+        ps_objects,
+        ps_labels,
         test_size=0.20,
-        stratify=unique_labels,
+        stratify=ps_labels,
         random_state=42
     )
 
-    # Assign images based on object IDs:
+    # Final object sets
+    train_objects = set(non_ps_objects) | set(ps_train_obj)
+    val_objects = set(ps_val_obj)
 
-    X_train = [p for p in image_paths if os.path.basename(os.path.dirname(p)) in obj_train]
-    X_val = [p for p in image_paths if os.path.basename(os.path.dirname(p)) in obj_val]
-    #X_test = [p for p in image_paths if os.path.basename(os.path.dirname(p)) in obj_test]
+    # Assign images based on object membership
+    X_train = [p for obj in train_objects for p in object_to_paths[obj]]
+    X_val   = [p for obj in val_objects   for p in object_to_paths[obj]]
+
+    # Labels
+    y_train = [object_to_label[os.path.basename(os.path.dirname(p))] for p in X_train]
+    y_val   = [object_to_label[os.path.basename(os.path.dirname(p))] for p in X_val]
+
+    print("Train objects:", len(train_objects))
+    print("Val objects:", len(val_objects))
+
+    print("Example val paths:")
+    print(X_val)
+
 
     y_train = [labels[image_paths.index(p)] for p in X_train]
     y_val = [labels[image_paths.index(p)] for p in X_val]

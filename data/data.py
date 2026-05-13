@@ -1,25 +1,10 @@
 import torch
 import os
 from PIL import Image
-import torch.nn as nn
-import torch.nn.functional as F
-from torchmetrics.functional import accuracy, f1_score, recall, precision, average_precision, auroc
-from torch.nn import CrossEntropyLoss
 from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler 
-from torchvision import datasets, transforms
-from torchvision.models import resnet18
-import pytorch_lightning as pl
-from pytorch_lightning import Trainer
-from pytorch_lightning import LightningDataModule
-from pytorch_lightning.callbacks import EarlyStopping
-from matplotlib import pyplot as plt
 import numpy as np
 from sklearn.model_selection import train_test_split
 import glob
-import pandas as pd
-import wandb
-from pytorch_lightning.loggers import WandbLogger
-import time
 from hydra.utils import instantiate
 
 

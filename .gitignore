@@ -216,3 +216,7 @@ wandb/
 .DS_Store
 *ipynb
 *ckpt
+wandb_export.py
+streamlit_test.py
+onnx_export.py
+debugging.py
