@@ -3,6 +3,7 @@ PestSpace
 PestSpace is a deep learning project for plant disease classification, supporting both single-plant and multi-plant scenarios. 
 The project uses Hydra configuration manager to control experiments and to easily switch between models, datasets, and hyperparameters.
 All model parameters, training settings, and dataset paths are defined in configuration file config.yaml located in the conf/ folder.
+Training process is visualised using Weights & Biases platform. 
 
 
 Repository Structure
@@ -33,7 +34,8 @@ Workflow
 - Create the Conda environment using environment.yml and activate it.
 - Configure the experiment by editing conf/config.yaml, including selecting the model, dataset, and training parameters.
 - Configure model specific parameters in conf/model/model.yaml.
-- In train.py, import the desired dataset loader depending on the experiment (e.g., from data.data import get_data_loaders or from data.       multidata import get_data_loaders).
+- In train.py import the desired dataset loader depending on the experiment (e.g., from data.data import get_data_loaders or from data.multidata import get_data_loaders).
+- In train.py insert your Weights & Biases private API key: wandb.login(key="YOUR_KEY")
 - Run training from the project root using python train.py.
 
 
