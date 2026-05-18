@@ -26,7 +26,7 @@ PestSpace/
 ├── environment.yml                      # dependencies
 ├── train.py                             # runs training process
 └── README.md
-##
+
 
 Workflow
 
