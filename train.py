@@ -13,7 +13,7 @@ def main(cfg: DictConfig):
 
     print("Config:", cfg)
 
-    # Wandb
+    # Wandb:
     wandb.login(key="YOUR_KEY")
 
     wandb_logger = WandbLogger(
@@ -22,7 +22,6 @@ def main(cfg: DictConfig):
     name=cfg.wandb.run_name,
     config={
         "batch_size": cfg.data.batch_size,
-        #"learning_rate": cfg.model.lr,
         "optimizer": "AdamW",
         "epochs": cfg.trainer.max_epochs
         },
@@ -31,10 +30,10 @@ def main(cfg: DictConfig):
         reinit=True
     )
 
-    # Data
+    # Data:
     train_dl, val_dl, class_counts, image_paths = get_data_loaders(cfg)
 
-    #Save best checkpoint:
+    # Save last and best checkpoint:
     checkpoint_cb = ModelCheckpoint(
                         monitor="val_loss",
                         mode="min",
@@ -43,16 +42,14 @@ def main(cfg: DictConfig):
                         filename="{epoch}-{val_loss:.4f}"
                     )
     
-    #Stop training when the validation loss stops improving:
+    # Stop training when the validation loss stops improving:
     early_stop_callback = EarlyStopping(
         monitor='val_loss',
-        patience=3,  # stop after nr of epochs with no improvement
+        patience=3,
         mode='min'
     )
 
-    print(f"class_counts{class_counts}")
-
-    #Model
+    # Model:
     model = instantiate(cfg.model,
                         class_counts=class_counts,
                         classes_to_use=cfg.data.diseases_to_use,
@@ -63,32 +60,31 @@ def main(cfg: DictConfig):
     # checkpoint = torch.load(cfg.ckpt_path, map_location="cpu")
     # state_dict = checkpoint["state_dict"]
 
-    # #remove classifier weights
+    # #Remove classifier weights:
     # state_dict = {
     #     k: v for k, v in state_dict.items()
     #     if not k.startswith("model.classifier")
     # }
 
     # model.load_state_dict(state_dict, strict=False)
-   
     # model.model.features.requires_grad_(True)
 
-    # For finetuning with plant and disease classification
 
-    checkpoint = torch.load(cfg.ckpt_path, map_location="cpu")
-    state_dict = checkpoint["state_dict"]
+    # For finetuning with plant and disease classification:
+    # checkpoint = torch.load(cfg.ckpt_path, map_location="cpu")
+    # state_dict = checkpoint["state_dict"]
 
-    # Remove both heads
-    state_dict = {
-    k: v for k, v in state_dict.items()
-    if not ("disease_head" in k or "plant_head" in k)
-    }
+    # #Remove both heads:
+    # state_dict = {
+    # k: v for k, v in state_dict.items()
+    # if not ("disease_head" in k or "plant_head" in k)
+    # }
 
-    model.load_state_dict(state_dict, strict=False)
-    model.model.features.requires_grad_(True)
+    # model.load_state_dict(state_dict, strict=False)
+    # model.model.features.requires_grad_(True)
 
 
-    # Trainer
+    # Trainer:
     trainer = Trainer(
         max_epochs=cfg.trainer.max_epochs,
         accelerator=cfg.trainer.accelerator,
@@ -98,11 +94,8 @@ def main(cfg: DictConfig):
         callbacks=[checkpoint_cb, early_stop_callback]
     )
 
-    # Train with validation every epoch
+    # Train with validation every epoch:
     trainer.fit(model, train_dataloaders=train_dl, val_dataloaders=val_dl)
-
-    # Test
-    #trainer.test(model, dataloaders=test_dl)
 
     wandb.finish()
 
