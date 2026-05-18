@@ -14,7 +14,7 @@ def main(cfg: DictConfig):
     print("Config:", cfg)
 
     # Wandb
-    wandb.login(key="c6296443d688c57d80b06f95f26c00000ff94a35")
+    wandb.login(key="YOUR_KEY")
 
     wandb_logger = WandbLogger(
     project=cfg.wandb.project,
