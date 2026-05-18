@@ -5,7 +5,7 @@ The project uses Hydra configuration manager to control experiments and to easil
 All model parameters, training settings, and dataset paths are defined in configuration file config.yaml located in the conf/ folder.
 
 
-Repository Structure
+##Repository Structure
 
 PestSpace/
 ├── conf
@@ -25,7 +25,7 @@ PestSpace/
 ├── environment.yml                      # dependencies
 ├── train.py                             # runs training process
 └── README.md
-
+##
 
 Workflow
 
