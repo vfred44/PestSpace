@@ -3,10 +3,9 @@ import os
 from PIL import Image
 import torch.nn as nn
 import torch.nn.functional as F
-#from torchmetrics.functional import accuracy, f1_score, recall, precision
 import pytorch_lightning as pl
 import numpy as np
-from sklearn.metrics import balanced_accuracy_score, precision_score, recall_score, f1_score
+from sklearn.metrics import precision_score, recall_score, f1_score
 import wandb
 
 Image.MAX_IMAGE_PIXELS = None
@@ -28,7 +27,7 @@ class FocalLoss(nn.Module):
         # If None, default to 1
         if alpha is None:
             alpha = 1
-
+            
         self.alpha = alpha
 
     def forward(self, inputs, targets):
@@ -118,15 +117,8 @@ class multiEfficientnetB0(pl.LightningModule):
 
         return plant_logits, disease_logits
 
-    # #For finetuning
-    #
-    # def on_train_epoch_start(self):
-    #     if self.current_epoch == 5:
-    #         print("Unfreezing backbone...")
-    #         self.model.features.requires_grad_(True)
-
-    #For grouped metrics
-
+   
+    # For grouped metrics:
     def compute_grouped_metrics(self, preds, targets, paths, prefix=""):
         paths = np.array(paths)
 
@@ -161,61 +153,21 @@ class multiEfficientnetB0(pl.LightningModule):
 
         return metrics
     
-    def compute_grouped_metrics(self, preds, targets, paths, prefix=""):
-        paths = np.array(paths)
-
-        folder_names = np.array([
-            os.path.basename(os.path.dirname(os.path.dirname(p)))
-            for p in paths
-        ])
-
-        # 🔑 DIFFERENT GROUPS depending on phase
-        if prefix.startswith("train"):
-            groups = {
-                "Fababean": np.array([fn.startswith("Fababean") for fn in folder_names]),
-                "Wheat": np.array([fn.startswith("Wheat") for fn in folder_names]),
-            }       
-        else:  # validation
-            groups = {
-                "PS_Fababean": np.array([fn.startswith("PS_Fababean") for fn in folder_names]),
-                "PS_Wheat": np.array([fn.startswith("PS_Wheat") for fn in folder_names]),
-            }
-
-        metrics = {}
-
-        for group_name, mask in groups.items():
-            if mask.sum() == 0:
-                continue
-
-            dp = preds[mask]
-            dt = targets[mask]
-
-            metrics.update({
-                f"{prefix}_precision_{group_name}": precision_score(dt, dp, average="macro", zero_division=0),
-                f"{prefix}_recall_{group_name}": recall_score(dt, dp, average="macro", zero_division=0),
-                f"{prefix}_f1_{group_name}": f1_score(dt, dp, average="macro", zero_division=0),
-            })
-
-        return metrics
-
-
-
+    
     def training_step(self, batch, batch_idx):
         inputs, plant_labels, disease_labels, image_paths = batch
-        #outputs = self(inputs)
         plant_logits, disease_logits = self(inputs)
-        #train_loss = self.loss_fn(outputs, labels)
         #preds = torch.argmax(outputs, dim=1)
         train_plant_loss = self.loss_fn(plant_logits, plant_labels)
         train_disease_loss = self.loss_fn(disease_logits, disease_labels)
         
         train_loss = train_plant_loss + train_disease_loss
 
-        # predictions
+        # Predictions:
         plant_preds = torch.argmax(plant_logits, dim=1)
         disease_preds = torch.argmax(disease_logits, dim=1)
 
-        # store
+        # Store:
         self.train_disease_preds.append(disease_preds.detach().cpu())
         self.train_disease_targets.append(disease_labels.detach().cpu())
         self.train_plant_preds.append(plant_preds.detach().cpu())
@@ -233,13 +185,11 @@ class multiEfficientnetB0(pl.LightningModule):
         if len(self.train_plant_preds) > 0:
             plant_preds = torch.cat(self.train_plant_preds).numpy()
             plant_targets = torch.cat(self.train_plant_targets).numpy()
-            train_plant_bal_acc = balanced_accuracy_score(plant_targets, plant_preds)
             train_plant_precision = precision_score(plant_targets, plant_preds, average="macro", zero_division=0)
             train_plant_recall = recall_score(plant_targets, plant_preds, average="macro", zero_division=0)
             train_plant_f1 = f1_score(plant_targets, plant_preds, average="macro", zero_division=0)
        
             self.log_dict({
-                "train_plant_bal_acc": train_plant_bal_acc,
                 "train_plant_precision": train_plant_precision,
                 "train_plant_recall": train_plant_recall,
                 "train_plant_f1": train_plant_f1
@@ -249,13 +199,11 @@ class multiEfficientnetB0(pl.LightningModule):
         if len(self.train_disease_preds) > 0:
             disease_preds = torch.cat(self.train_disease_preds).numpy()
             disease_targets = torch.cat(self.train_disease_targets).numpy()
-            # train_disease_bal_acc = balanced_accuracy_score(disease_targets, disease_preds)
             # train_disease_precision = precision_score(disease_targets, disease_preds, average="macro", zero_division=0)
             # train_disease_recall = recall_score(disease_targets, disease_preds, average="macro", zero_division=0)
             # train_disease_f1 = f1_score(disease_targets, disease_preds, average="macro", zero_division=0)
             
             # self.log_dict({
-            #     "train_disease_bal_acc": train_disease_bal_acc,
             #     "train_disease_precision": train_disease_precision,
             #     "train_disease_recall": train_disease_recall,
             #     "train_disease_f1": train_disease_f1
@@ -271,7 +219,7 @@ class multiEfficientnetB0(pl.LightningModule):
             self.log_dict(grouped_metrics, on_epoch=True, on_step=False, logger=True)
 
 
-        # clear buffers
+        # Clear buffers:
         self.train_plant_preds.clear()
         self.train_plant_targets.clear()
         self.train_disease_preds.clear()
@@ -281,9 +229,7 @@ class multiEfficientnetB0(pl.LightningModule):
 
     def validation_step (self, batch, batch_idx):
         inputs, plant_labels, disease_labels, image_paths = batch
-        #outputs = self(inputs)
         plant_logits, disease_logits = self(inputs)
-        #val_loss = self.loss_fn(outputs, labels)
         #preds = torch.argmax(outputs, dim=1)
         val_plant_loss = self.loss_fn(plant_logits, plant_labels)
         val_disease_loss = self.loss_fn(disease_logits, disease_labels)
@@ -296,13 +242,12 @@ class multiEfficientnetB0(pl.LightningModule):
         plant_preds = torch.argmax(plant_logits, dim=1)
         disease_preds = torch.argmax(disease_logits, dim=1)
 
-        # store
+        # Store:
         self.val_disease_preds.append(disease_preds.detach().cpu())
         self.val_disease_targets.append(disease_labels.detach().cpu())
         self.val_plant_preds.append(plant_preds.detach().cpu())
         self.val_plant_targets.append(plant_labels.detach().cpu())
         #self.val_images.append(inputs.detach().cpu())
-
         self.image_ids.extend(ids)
         self.image_paths_all.extend(image_paths)
         
@@ -318,7 +263,6 @@ class multiEfficientnetB0(pl.LightningModule):
         self.val_disease_targets.clear()
         self.val_plant_preds.clear()
         self.val_plant_targets.clear()
-
         #self.val_images.clear()
         self.image_ids.clear()
         self.image_paths_all.clear()
@@ -333,13 +277,11 @@ class multiEfficientnetB0(pl.LightningModule):
         if len(self.val_plant_preds) > 0:
             plant_preds = torch.cat(self.val_plant_preds).numpy()
             plant_targets = torch.cat(self.val_plant_targets).numpy()
-            val_plant_bal_acc = balanced_accuracy_score(plant_targets, plant_preds)
             val_plant_precision = precision_score(plant_targets, plant_preds, average="macro", zero_division=0)
             val_plant_recall = recall_score(plant_targets, plant_preds, average="macro", zero_division=0)
             val_plant_f1 = f1_score(plant_targets, plant_preds, average="macro", zero_division=0)
             
             self.log_dict({
-                "val_plant_bal_acc": val_plant_bal_acc,
                 "val_plant_precision": val_plant_precision,
                 "val_plant_recall": val_plant_recall,
                 "val_plant_f1": val_plant_f1
@@ -348,13 +290,11 @@ class multiEfficientnetB0(pl.LightningModule):
         if len(self.val_disease_preds) > 0:
             disease_preds = torch.cat(self.val_disease_preds).numpy()
             disease_targets = torch.cat(self.val_disease_targets).numpy()
-            # val_disease_bal_acc = balanced_accuracy_score(disease_targets, disease_preds)
             # val_disease_precision = precision_score(disease_targets, disease_preds, average="macro", zero_division=0)
             # val_disease_recall = recall_score(disease_targets, disease_preds, average="macro", zero_division=0)
             # val_disease_f1 = f1_score(disease_targets, disease_preds, average="macro", zero_division=0)
             
             # self.log_dict({
-            #     "val_disease_bal_acc": val_disease_bal_acc,
             #     "val_disease_precision": val_disease_precision,
             #     "val_disease_recall": val_disease_recall,
             #     "val_disease_f1": val_disease_f1
@@ -369,10 +309,10 @@ class multiEfficientnetB0(pl.LightningModule):
 
             self.log_dict(grouped_metrics, on_epoch=True, on_step=False, logger=True)
 
-        #Save best epoch outputs:
+        # Save best epoch outputs:
         current_val_loss = self.trainer.callback_metrics["val_loss"]
 
-        # tensor to float
+        # Tensor to float:
         if isinstance(current_val_loss, torch.Tensor):
             current_val_loss = current_val_loss.item()
 
@@ -384,9 +324,6 @@ class multiEfficientnetB0(pl.LightningModule):
 
             self.best_outputs["plant_preds"] = torch.cat(self.val_plant_preds, dim=0).cpu()
             self.best_outputs["plant_targets"] = torch.cat(self.val_plant_targets, dim=0).cpu()
-
-            #self.best_outputs["images"] = torch.cat(self.val_images, dim=0).cpu()
-            #self.best_outputs["img_ids"] = np.array(self.image_ids)
 
             self.best_outputs["image_paths"] = list(self.image_paths_all)
             self.best_outputs["img_ids"] = np.array(self.image_ids)
@@ -401,10 +338,9 @@ class multiEfficientnetB0(pl.LightningModule):
         plant_pred = self.best_outputs["plant_preds"].numpy()
         plant_targets = self.best_outputs["plant_targets"].numpy()
 
-        print("Unique disease targets:", np.unique(disease_targets))
-        print("Unique disease preds:", np.unique(disease_pred))
+        #print("Unique disease targets:", np.unique(disease_targets))
+        #print("Unique disease preds:", np.unique(disease_pred))
 
-        #images = self.best_outputs["images"].permute(0, 2, 3, 1).numpy()
         def load_image(path):
             img = Image.open(path).convert("RGB")
             img = img.resize((224, 224))
@@ -418,7 +354,7 @@ class multiEfficientnetB0(pl.LightningModule):
 
         print(f"Best val_loss: {self.best_val_loss}")
         
-        # log FP and FN
+        # Log FP and FN:
 
         max_images = 20
 
@@ -443,22 +379,6 @@ class multiEfficientnetB0(pl.LightningModule):
                 print("False negative paths:")
                 print(fn_paths)
 
-                #fp_images = images[fp_idx][:max_images]
-                #fn_images = images[fn_idx][:max_images]
-
-                #fp_ids = img_ids[fp_idx][:max_images]
-                #fn_ids = img_ids[fn_idx][:max_images]
-
-                # # unnormalize
-                # fp_images = [
-                #     np.clip(img * np.array([0.229,0.224,0.225]) + np.array([0.485,0.456,0.406]),0.0,1.0)
-                #     for img in fp_images
-                # ]
-                # fn_images = [
-                #     np.clip(img * np.array([0.229,0.224,0.225]) + np.array([0.485,0.456,0.406]),0.0,1.0)
-                #     for img in fn_images
-                # ]
-
                 self.logger.experiment.log({
                     f"{head_name}_confusion_matrix": wandb.plot.confusion_matrix(
                         y_true=targets,
@@ -473,33 +393,23 @@ class multiEfficientnetB0(pl.LightningModule):
                     ]
                 }, commit=False)
 
-
         log_head(disease_pred, disease_targets, self.class_names, head_name="disease")
         log_head(plant_pred, plant_targets, self.plant_names, head_name="plant")
 
         
-
-    def test_step(self, batch, batch_idx):
-        inputs, labels = batch
-        outputs = self(inputs)
-        test_loss = F.cross_entropy(outputs, labels)
-        preds = torch.argmax(outputs, dim=1)
-        test_acc = (preds == labels).float().mean()
-        self.log_dict({"test_loss": test_loss, "test_acc": test_acc}, logger=True)
+    # def test_step(self, batch, batch_idx):
+    #     inputs, labels = batch
+    #     outputs = self(inputs)
+    #     test_loss = F.cross_entropy(outputs, labels)
+    #     preds = torch.argmax(outputs, dim=1)
+    #     test_acc = (preds == labels).float().mean()
+    #     self.log_dict({"test_loss": test_loss, "test_acc": test_acc}, logger=True)
         
-        return test_loss
+    #     return test_loss
     
-    # def configure_optimizers(self):
-    #     return torch.optim.AdamW(
-    #          self.parameters(),
-    #          lr=self.hparams.lr,
-    #          weight_decay=self.hparams.weight_decay
-    # )
-    
-
     def configure_optimizers(self):
         return torch.optim.AdamW(
-            filter(lambda p: p.requires_grad, self.parameters()),
-            lr=self.hparams.lr,
-            weight_decay=self.hparams.weight_decay
-    )
+             self.parameters(),
+             lr=self.hparams.lr,
+             weight_decay=self.hparams.weight_decay
+        )
