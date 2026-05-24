@@ -61,8 +61,6 @@ class MyImageDataset(Dataset):
         return image, plant_label, disease_label, image_path
     
 
-# Functions:
-
 def prepare_datasets(cfg):
     
     image_paths = []
