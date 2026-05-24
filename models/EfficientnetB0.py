@@ -2,10 +2,9 @@ import torch
 import os
 import torch.nn as nn
 import torch.nn.functional as F
-#from torchmetrics.functional import accuracy, f1_score, recall, precision
 import pytorch_lightning as pl
 import numpy as np
-from sklearn.metrics import balanced_accuracy_score, precision_score, recall_score, f1_score
+from sklearn.metrics import precision_score, recall_score, f1_score
 import wandb
 
 
@@ -19,11 +18,11 @@ class FocalLoss(nn.Module):
             inv_freq = 1/(class_count/class_count.sum())
             alpha = inv_freq/inv_freq.sum()
 
-        # Convert alpha to torch tensor
+        # Convert alpha to torch tensor:
         if isinstance(alpha, np.ndarray):
             alpha = torch.tensor(alpha, dtype=torch.float32)
 
-        # If None, default to 1
+        # If None, default to 1:
         if alpha is None:
             alpha = 1
 
@@ -55,13 +54,10 @@ class EfficientnetB0(pl.LightningModule):
         self.class_names = classes_to_use
         self.num_classes = len(classes_to_use)
     
-
         if use_focal_loss:
             self.loss_fn = FocalLoss(class_counts=class_counts, gamma=gamma, alpha=alpha)
         
         elif use_weighted_loss and class_counts is not None:
-            #print("class_counts:", class_counts)
-            #print("type:", type(class_counts))
             class_counts = torch.tensor(class_counts, dtype=torch.float)
             class_weights = 1.0 / class_counts
             self.loss_fn = nn.CrossEntropyLoss(weight=class_weights)
@@ -103,18 +99,11 @@ class EfficientnetB0(pl.LightningModule):
             preds = torch.cat(self.train_preds).numpy()
             targets = torch.cat(self.train_targets).numpy()
 
-            train_bal_acc = balanced_accuracy_score(targets, preds)
             train_precision = precision_score(targets, preds, average="macro", zero_division=0)
             train_recall = recall_score(targets, preds, average="macro", zero_division=0)
             train_f1score = f1_score(targets, preds, average="macro", zero_division=0)
             
-            #Torchmetrics:
-            #train_precision = precision(targets, preds, task="multiclass", num_classes=self.num_classes, average="macro")
-            #train_recall = recall(targets, preds, task="multiclass", num_classes=self.num_classes, average="macro")
-            #train_f1score = f1_score(targets, preds, task="multiclass", num_classes=self.num_classes, average="macro")
-
-            self.log_dict({"train_bal_accuracy": train_bal_acc,
-                            "train_precision": train_precision, 
+            self.log_dict({ "train_precision": train_precision, 
                             "train_recall": train_recall, 
                             "train_f1score": train_f1score
                         }, on_epoch=True, on_step=False, logger=True)
@@ -133,9 +122,6 @@ class EfficientnetB0(pl.LightningModule):
         #IDs:
         ids = [os.path.basename(os.path.dirname(p)) for p in image_paths]
       
-        #probs = torch.softmax(outputs, dim=1)
-        #pos_probs = probs[:, 1] #positive class probabilities
-
         self.val_preds.append(preds.cpu())
         self.val_targets.append(labels.cpu())
         self.val_images.append(inputs.cpu())
@@ -160,18 +146,11 @@ class EfficientnetB0(pl.LightningModule):
             preds = torch.cat(self.val_preds).numpy()
             targets = torch.cat(self.val_targets).numpy()
 
-            val_bal_acc = balanced_accuracy_score(targets, preds)
             val_precision = precision_score(targets, preds, average="macro", zero_division=0)
             val_recall = recall_score(targets, preds, average="macro", zero_division=0)
             val_f1score = f1_score(targets, preds, average="macro", zero_division=0)
 
-            #Torchmetrics
-            #val_precision = precision(preds, labels, task="multiclass", num_classes=self.num_classes, average="macro")
-            #val_recall = recall(preds, labels, task="multiclass", num_classes=self.num_classes, average="macro")
-            #val_f1score = f1_score(preds, labels, task="multiclass", num_classes=self.num_classes, average="macro")
-
-            self.log_dict({"val_bal_accuracy": val_bal_acc,
-                            "val_precision": val_precision, 
+            self.log_dict({"val_precision": val_precision, 
                             "val_recall": val_recall, 
                             "val_f1score": val_f1score
                         }, on_epoch=True, on_step=False, logger=True)
@@ -184,8 +163,7 @@ class EfficientnetB0(pl.LightningModule):
         #y_probs = torch.cat(self.val_preds_probs, dim=0).numpy()
         img_ids = np.array(self.image_ids)
 
-        # log FP and FN
-
+        # log FP and FN:
         max_images = 20
 
         for c, class_name in enumerate(self.class_names):
@@ -249,15 +227,15 @@ class EfficientnetB0(pl.LightningModule):
 
         
 
-    def test_step(self, batch, batch_idx):
-        inputs, labels = batch
-        outputs = self(inputs)
-        test_loss = F.cross_entropy(outputs, labels)
-        preds = torch.argmax(outputs, dim=1)
-        test_acc = (preds == labels).float().mean()
-        self.log_dict({"test_loss": test_loss, "test_acc": test_acc}, logger=True)
+    # def test_step(self, batch, batch_idx):
+    #     inputs, labels = batch
+    #     outputs = self(inputs)
+    #     test_loss = F.cross_entropy(outputs, labels)
+    #     preds = torch.argmax(outputs, dim=1)
+    #     test_acc = (preds == labels).float().mean()
+    #     self.log_dict({"test_loss": test_loss, "test_acc": test_acc}, logger=True)
         
-        return test_loss
+    #     return test_loss
     
     def configure_optimizers(self):
         return torch.optim.AdamW(self.parameters(), lr=self.hparams.lr, weight_decay=self.hparams.weight_decay)
