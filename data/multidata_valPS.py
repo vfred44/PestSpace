@@ -46,7 +46,6 @@ class MyImageDataset(Dataset):
         image_path = self.file_paths[idx]
         Image.MAX_IMAGE_PIXELS = None
         image = Image.open(image_path).convert('RGB')
-        disease_label = self.labels[idx]
         class_name = self.labels[idx]
         
         # Disease label
@@ -72,15 +71,11 @@ def prepare_datasets(cfg):
 
     for class_name in cfg.data.diseases_to_use:
         class_dir = os.path.join(cfg.data.train_base, class_name)
-        #class_label = cfg.data.class_to_label[class_name]
-
-        #class_counts[class_label] = 0
-
+      
         # Load all .jpg files recursively
         pattern = os.path.join(class_dir, "**/*.[jJ][pP][gG]")
       
         for img_path in glob.glob(pattern, recursive=True):
-            # print("image_path")
             # print(img_path)
             image_paths.append(img_path)
             labels.append(class_name)
@@ -89,7 +84,6 @@ def prepare_datasets(cfg):
 
     
     # Extract object IDs:
-
     object_ids = [os.path.basename(os.path.dirname(p)) for p in image_paths]
 
     object_to_label = {}
@@ -99,7 +93,7 @@ def prepare_datasets(cfg):
         object_to_label[obj] = label
         object_to_paths.setdefault(obj, []).append(p)
 
-    # Split objects into PS and non-PS
+    # Split objects into PS and non-PS:
     ps_objects = []
     ps_labels = []
 
@@ -117,7 +111,7 @@ def prepare_datasets(cfg):
     ps_objects = np.array(ps_objects)
     ps_labels = np.array(ps_labels)
 
-    # Split only PS objects
+    # Split only PS objects:
     ps_train_obj, ps_val_obj, _, _ = train_test_split(
         ps_objects,
         ps_labels,
@@ -126,11 +120,11 @@ def prepare_datasets(cfg):
         random_state=42
     )
 
-    # Final object sets
+    # Final object sets:
     train_objects = set(non_ps_objects) | set(ps_train_obj)
     val_objects = set(ps_val_obj)
 
-    # Assign images based on object membership
+    # Assign images based on object IDs:
     X_train = [p for obj in train_objects for p in object_to_paths[obj]]
     X_val   = [p for obj in val_objects   for p in object_to_paths[obj]]
 
@@ -144,35 +138,12 @@ def prepare_datasets(cfg):
     print("Example val paths:")
     print(X_val)
 
-
-    y_train = [labels[image_paths.index(p)] for p in X_train]
-    y_val = [labels[image_paths.index(p)] for p in X_val]
-    #y_test = [labels[image_paths.index(p)] for p in X_test]
-
-    # Transform data:
-
-    # transform = transforms.Compose([
-    #     #transforms.Resize((1024, 1024)),
-    #     #transforms.Resize((256, 256)),
-    #     #transforms.Resize((512, 512)),
-    #     transforms.Resize(512),
-    #     transforms.CenterCrop(512),
-    #     transforms.ToTensor(),
-    #     transforms.Normalize((0.485, 0.456, 0.406),
-    #                          (0.229, 0.224, 0.225))
-    # ])
-
     train_transform = instantiate(cfg.data.transforms.train)
-
     val_transform = instantiate(cfg.data.transforms.val)
   
-    
     train_dataset = MyImageDataset(X_train, y_train, cfg=cfg, transform=train_transform)
     val_dataset   = MyImageDataset(X_val, y_val, cfg=cfg, transform=val_transform)
-    #test_dataset  = MyImageDataset(X_test, y_test, transform=transform)
 
-
-    #class_counts = [int(class_counts[i]) for i in sorted(class_counts.keys())]
     class_counts = [class_counts[c] for c in cfg.data.diseases_to_use]
 
     return train_dataset, val_dataset, class_counts, image_paths, y_train
@@ -192,6 +163,6 @@ def get_data_loaders(cfg):
                               batch_size=cfg.data.batch_size, 
                               shuffle=False, 
                               num_workers=cfg.data.num_workers)
-    #test_loader  = DataLoader(test_dataset, batch_size=cfg.data.batch_size, shuffle=False, num_workers=cfg.data.num_workers)
+    
    
     return train_loader, val_loader, class_counts, image_paths
